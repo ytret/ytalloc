@@ -1,0 +1,11 @@
+BasedOnStyle: LLVM
+IndentWidth: 4
+
+AlignConsecutiveMacros: AcrossComments
+AllowShortBlocksOnASingleLine: Always
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: WithoutElse
+BreakBeforeBraces: Custom
+BraceWrapping:
+  SplitEmptyFunction: true
+IncludeIsMainRegex: "^$"
