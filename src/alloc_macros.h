@@ -3,39 +3,37 @@
 #include <stdio.h>  // IWYU pragma: keep
 #include <stdlib.h> // IWYU pragma: keep
 
-#define D_PRINTS(X)            D_PRINTF_IMPL("%s", X)
-#define D_PRINTF(FMT, ...)     D_PRINTF_IMPL(FMT, __VA_ARGS__)
-#define D_ASSERT(X)            D_ASSERT_IMPL(X, false, "%s", "")
-#define D_ASSERTF(X, FMT, ...) D_ASSERT_IMPL(X, true, FMT, __VA_ARGS__)
+#define PRINTS_ALWAYS(X)            PRINTF_IMPL("%s", X)
+#define PRINTF_ALWAYS(FMT, ...)     PRINTF_IMPL(FMT, __VA_ARGS__)
+#define ASSERT_ALWAYS(X)            ASSERT_IMPL(X, false, "%s", "")
+#define ASSERTF_ALWAYS(X, FMT, ...) ASSERT_IMPL(X, true, FMT, __VA_ARGS__)
 
 #ifdef YTALLOC_DEBUG
+#define PRINTS_DEBUG(X)            PRINTF_IMPL("%s", X)
+#define PRINTF_DEBUG(FMT, ...)     PRINTF_IMPL(FMT, __VA_ARGS__)
+#define ASSERT_DEBUG(X)            ASSERT_IMPL(X, false, "%s", "")
+#define ASSERTF_DEBUG(X, FMT, ...) ASSERT_IMPL(X, true, FMT, __VA_ARGS__)
+#else
+#define PRINTS_DEBUG(X)
+#define PRINTF_DEBUG(FMT, ...)
+#define ASSERT_DEBUG(X)
+#define ASSERTF_DEBUG(x, FMT, ...)
+#endif
 
-#define D_PRINTF_IMPL(FMT, ...)                                                \
+#define PRINTF_IMPL(FMT, ...)                                                  \
     do {                                                                       \
         fprintf(stderr, "" FMT "\n", __VA_ARGS__);                             \
     } while (0)
 
-#define D_ASSERT_IMPL(X, HAS_MSG, FMT, ...)                                    \
+#define ASSERT_IMPL(X, HAS_MSG, FMT, ...)                                      \
     do {                                                                       \
         if (!(X)) {                                                            \
-            D_PRINTS("Assertion failed:");                                     \
-            if (HAS_MSG) { D_PRINTF(FMT, __VA_ARGS__); }                       \
-            D_PRINTF("  Expression: %s", "" #X);                               \
-            D_PRINTF("        File: %s", __FILE__);                            \
-            D_PRINTF("    Function: %s", __FUNCTION__);                        \
-            D_PRINTF("        Line: %u", __LINE__);                            \
+            PRINTS_ALWAYS("Assertion failed:");                                \
+            if (HAS_MSG) { PRINTF_ALWAYS(FMT, __VA_ARGS__); }                  \
+            PRINTF_ALWAYS("  Expression: %s", "" #X);                          \
+            PRINTF_ALWAYS("        File: %s", __FILE__);                       \
+            PRINTF_ALWAYS("    Function: %s", __FUNCTION__);                   \
+            PRINTF_ALWAYS("        Line: %u", __LINE__);                       \
             abort();                                                           \
         }                                                                      \
     } while (0)
-
-#else
-
-#define D_PRINTF_IMPL(FMT, ...)                                                \
-    do {                                                                       \
-    } while (0);
-
-#define D_ASSERT_IMPL(X, HAS_MSG, FMT, ...)                                    \
-    do {                                                                       \
-    } while (0);
-
-#endif

@@ -3,8 +3,8 @@
 #include "ytalloc/ytalloc.h"
 
 void alloc_static_init(alloc_static_t *heap, void *start, size_t size) {
-    D_ASSERT(heap != NULL);
-    D_ASSERT(start != NULL);
+    ASSERT_ALWAYS(heap != NULL);
+    ASSERT_ALWAYS(start != NULL);
 
     alloc_memset(heap, 0, sizeof(*heap));
 
@@ -15,7 +15,7 @@ void alloc_static_init(alloc_static_t *heap, void *start, size_t size) {
 }
 
 void *alloc_static(alloc_static_t *heap, size_t size) {
-    D_ASSERT(heap != NULL);
+    ASSERT_DEBUG(heap != NULL);
 
     if (size == 0) { return NULL; }
 
