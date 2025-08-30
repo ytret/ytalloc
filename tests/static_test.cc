@@ -2,70 +2,7 @@
 #include <random>
 #include <ytalloc/ytalloc.h>
 
-/**
- * A mechanism to check data integrity by copying the original data and later
- * checking against it.
- *
- * - The copy is automatically created on the heap in #random_write().
- * - Data integrity is checked with #check_integrity().
- * - The copy is deleted with #delete_copy().
- *
- * @warning
- * The default destructor does not delete the copy, use #delete_copy().
- */
-struct DuplicatedWrite {
-    void *dest = nullptr;
-    uint8_t *copy = nullptr;
-    size_t num_bytes;
-
-    DuplicatedWrite() = delete;
-
-    /**
-     * Writes @a num_bytes random bytes to @a v_dest and remembers them.
-     * @param rng       Random number generator used to generate the bytes
-     *                  written to @a v_dest.
-     * @param v_dest    Destination buffer of size @a num_bytes.
-     * @param num_bytes The number of bytes to write.
-     */
-    static DuplicatedWrite random_write(std::minstd_rand rng, void *v_dest,
-                                        size_t num_bytes) {
-        uint8_t *const u8_dest = static_cast<uint8_t *>(v_dest);
-        uint32_t *const u32_dest = static_cast<uint32_t *>(v_dest);
-
-        size_t dword_idx;
-        for (dword_idx = 0; dword_idx < num_bytes / 4; dword_idx++) {
-            uint32_t *const dest_ptr = (uint32_t *)u32_dest + dword_idx;
-            *dest_ptr = rng();
-        }
-        size_t byte_idx;
-        for (byte_idx = num_bytes - 4 * dword_idx; byte_idx < num_bytes;
-             byte_idx++) {
-            uint8_t *const dest_ptr = u8_dest + byte_idx;
-            *dest_ptr = static_cast<uint8_t>(rng() & 0xFF);
-        }
-
-        uint8_t *const u8_copy = new uint8_t[num_bytes];
-        memcpy(u8_copy, v_dest, num_bytes);
-
-        return DuplicatedWrite{
-            .dest = v_dest,
-            .copy = u8_copy,
-            .num_bytes = num_bytes,
-        };
-    }
-
-    /**
-     * Checks whether @a num_bytes at @a dest and @a copy are the same.
-     * @returns `true` if they hold the same data, otherwise `false`.
-     */
-    bool check_integrity() const {
-        return !memcmp(dest, copy, num_bytes);
-    }
-
-    void delete_copy() {
-        delete[] copy;
-    }
-};
+#include "tests_common/DuplicatedWrite.h"
 
 class StaticTest : public testing::Test {
   protected:
