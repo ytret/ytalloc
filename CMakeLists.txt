@@ -13,8 +13,14 @@ set(CMAKE_C_FLAGS_DEBUG "-O0 -g")
 set(CMAKE_C_FLAGS_RELEASE "-O3")
 set(CMAKE_C_FLAGS_RELWITHDEBINFO "-O3 -g")
 
+set(YTALLOC_LIST_DO_CHECKS ON CACHE BOOL
+    "Perform heap integrity checks in alloc_list() and alloc_list_free().")
+
 add_library(ytalloc SHARED
+    src/alloc_list.c
     src/alloc_static.c
+
+    src/aux/list.c
 )
 target_compile_options(ytalloc PRIVATE
     -Wall -Wextra -Wmissing-prototypes
@@ -28,6 +34,10 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     target_compile_definitions(ytalloc PRIVATE -DYTALLOC_DEBUG)
 else()
     target_compile_definitions(ytalloc PRIVATE -DYTALLOC_RELEASE)
+endif()
+
+if(YTALLOC_LIST_DO_CHECKS)
+    target_compile_definitions(ytalloc PRIVATE -DALLOC_LIST_DO_CHECKS)
 endif()
 
 add_subdirectory(tests)

@@ -31,3 +31,4 @@ function(my_add_test name)
 endfunction()
 
 my_add_test(static_test)
+my_add_test(list_test)
