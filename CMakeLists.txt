@@ -15,6 +15,8 @@ set(CMAKE_C_FLAGS_RELWITHDEBINFO "-O3 -g")
 
 set(YTALLOC_LIST_DO_CHECKS ON CACHE BOOL
     "Perform heap integrity checks in alloc_list() and alloc_list_free().")
+set(YTALLOC_MEMCPY "memcpy" CACHE STRING "memcpy function used by ytalloc.")
+set(YTALLOC_MEMSET "memset" CACHE STRING "memset function used by ytalloc.")
 
 add_library(ytalloc SHARED
     src/alloc_list.c
@@ -39,5 +41,9 @@ endif()
 if(YTALLOC_LIST_DO_CHECKS)
     target_compile_definitions(ytalloc PRIVATE -DALLOC_LIST_DO_CHECKS)
 endif()
+target_compile_definitions(ytalloc PRIVATE
+    -DYTALLOC_MEMCPY=${YTALLOC_MEMCPY}
+    -DYTALLOC_MEMSET=${YTALLOC_MEMSET}
+)
 
 add_subdirectory(tests)
