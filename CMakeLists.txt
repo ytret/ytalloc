@@ -19,10 +19,13 @@ set(YTALLOC_MEMCPY "memcpy" CACHE STRING "memcpy function used by ytalloc.")
 set(YTALLOC_MEMSET "memset" CACHE STRING "memset function used by ytalloc.")
 
 add_library(ytalloc SHARED
+
+    src/alloc_buddy.c
     src/alloc_list.c
     src/alloc_static.c
 
     src/aux/list.c
+
 )
 target_compile_options(ytalloc PRIVATE
     -Wall -Wextra -Wmissing-prototypes

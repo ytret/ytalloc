@@ -32,3 +32,4 @@ endfunction()
 
 my_add_test(static_test)
 my_add_test(list_test)
+my_add_test(buddy_test)
