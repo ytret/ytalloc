@@ -4,10 +4,29 @@
 #include "alloc_macros.h"
 #include "alloc_osintf.h"
 
-typedef struct alloc_buddy_node {
-    struct alloc_buddy_node *prev;
-    struct alloc_buddy_node *next;
-} alloc_buddy_node_t;
+typedef struct alloc_buddy_tag {
+    bool used;
+
+    union {
+        struct {
+            // used = true
+            uint8_t order;
+        };
+        struct {
+            // used = false
+            struct alloc_buddy_tag *prev;
+            struct alloc_buddy_tag *next;
+        };
+    };
+
+#if SIZE_MAX == UINT32_MAX
+    uint8_t reserved[18];
+#else
+    uint8_t reserved[8];
+#endif
+} alloc_buddy_tag_t;
+
+static_assert(sizeof(alloc_buddy_tag_t) == YTALLOC_BUDDY_TAG_SIZE);
 
 static uint64_t prv_alloc_calc_log2(uint64_t num);
 static size_t prv_alloc_calc_num_orders(size_t heap_size,
@@ -17,6 +36,8 @@ static size_t prv_alloc_calc_block_order(const alloc_buddy_t *heap,
 static size_t prv_alloc_calc_pow2_ge(size_t num);
 
 static void *prv_alloc_get_free_block(alloc_buddy_t *heap, size_t order);
+static void prv_alloc_add_free_block(alloc_buddy_t *heap, uintptr_t block,
+                                     uint8_t order);
 static uintptr_t prv_alloc_get_buddy(const alloc_buddy_t *heap, uintptr_t block,
                                      size_t order);
 
@@ -48,7 +69,7 @@ void alloc_buddy_init(alloc_buddy_t *heap, void *v_start, size_t size) {
     heap->min_block_size = min_block_size;
     heap->num_orders = num_orders;
 
-    alloc_buddy_node_t *const biggest_block = v_start;
+    alloc_buddy_tag_t *const biggest_block = v_start;
     biggest_block->prev = NULL;
     biggest_block->next = NULL;
     ASSERT_DEBUG(num_orders > 0);
@@ -62,18 +83,31 @@ void *alloc_buddy(alloc_buddy_t *heap, size_t size) {
     if (size > heap->used_size) { return NULL; }
 
     const size_t order = prv_alloc_calc_block_order(heap, size);
-    return prv_alloc_get_free_block(heap, order);
+    void *const ptr = prv_alloc_get_free_block(heap, order);
+    if (ptr) {
+        return ptr + YTALLOC_BUDDY_TAG_SIZE;
+    } else {
+        return NULL;
+    }
 }
 
 void alloc_buddy_free(alloc_buddy_t *heap, void *ptr) {
     ASSERT_DEBUG(heap != NULL);
-
     if (!ptr) { return; }
 
-    ASSERTF_DEBUG(heap->start <= (uintptr_t)ptr && (uintptr_t)ptr < heap->end,
+    const uintptr_t block = (uintptr_t)ptr - YTALLOC_BUDDY_TAG_SIZE;
+    ASSERTF_DEBUG(heap->start <= (uintptr_t)block && (uintptr_t)ptr < heap->end,
                   "%s", "ptr is outside the heap");
 
-    alloc_buddy_node_t *const new_node = ptr;
+    alloc_buddy_tag_t *const tag = (alloc_buddy_tag_t *)block;
+
+    ASSERT_ALWAYS(tag->used);
+    const uint8_t order = tag->order;
+    tag->used = false;
+    tag->prev = NULL;
+    tag->next = NULL;
+
+    prv_alloc_add_free_block(heap, block, order);
 }
 
 static size_t prv_alloc_calc_log2(size_t num) {
@@ -162,27 +196,61 @@ static void *prv_alloc_get_free_block(alloc_buddy_t *heap, size_t order) {
         void *const higher_block = prv_alloc_get_free_block(heap, order + 1);
         if (!higher_block) { return NULL; }
 
-        void *const ret_block = higher_block;
+        alloc_buddy_tag_t *const tag = (alloc_buddy_tag_t *)higher_block;
+        tag->used = true;
+        tag->order = order;
 
-        alloc_buddy_node_t *const buddy =
-            (alloc_buddy_node_t *)prv_alloc_get_buddy(
-                heap, (uintptr_t)ret_block, order);
-        buddy->prev = NULL;
-        buddy->next = NULL;
-        heap->free_heads[order] = (uintptr_t)buddy;
+        alloc_buddy_tag_t *const buddy_tag =
+            (alloc_buddy_tag_t *)prv_alloc_get_buddy(
+                heap, (uintptr_t)higher_block, order);
+        buddy_tag->used = false;
+        buddy_tag->prev = NULL;
+        buddy_tag->next = NULL;
+        heap->free_heads[order] = (uintptr_t)buddy_tag;
 
-        return ret_block;
+        return higher_block;
     } else {
-        alloc_buddy_node_t *const node = (alloc_buddy_node_t *)free_block;
+        alloc_buddy_tag_t *const tag = (alloc_buddy_tag_t *)free_block;
 
         ASSERTF_DEBUG(
-            node->prev == NULL,
-            "heap->free_heads[%zu] is supposed to point at the first node",
+            tag->prev == NULL,
+            "heap->free_heads[%zu] is supposed to point at the first tag",
             order);
-        heap->free_heads[order] = (uintptr_t)node->next;
-        if (node->next) { node->next->prev = node->prev; }
+        heap->free_heads[order] = (uintptr_t)tag->next;
+        if (tag->next) { tag->next->prev = tag->prev; }
+
+        tag->used = true;
+        tag->order = order;
 
         return (void *)free_block;
+    }
+}
+
+static void prv_alloc_add_free_block(alloc_buddy_t *heap, uintptr_t block,
+                                     uint8_t order) {
+    alloc_buddy_tag_t *const tag = (alloc_buddy_tag_t *)block;
+
+    ASSERT_DEBUG(heap->num_orders > 0);
+    const bool has_buddy = order < (heap->num_orders - 1);
+
+    if (has_buddy) {
+        const uintptr_t buddy = prv_alloc_get_buddy(heap, block, order);
+        const alloc_buddy_tag_t *const buddy_tag =
+            (const alloc_buddy_tag_t *)buddy;
+
+        if (buddy_tag->used) {
+            alloc_buddy_tag_t *const head =
+                (alloc_buddy_tag_t *)heap->free_heads[order];
+            ASSERT_DEBUG(!head->used);
+            head->prev = tag;
+            tag->next = head;
+            heap->free_heads[order] = block;
+        } else {
+            const uintptr_t higher_block = block < buddy ? block : buddy;
+            prv_alloc_add_free_block(heap, higher_block, order + 1);
+        }
+    } else {
+        heap->free_heads[order] = block;
     }
 }
 
