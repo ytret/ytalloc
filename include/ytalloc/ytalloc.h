@@ -7,13 +7,17 @@
 #define YTALLOC_BUDDY_MAX_ORDERS 32
 #endif
 #ifndef YTALLOC_BUDDY_MIN_BLOCK_SIZE
-#define YTALLOC_BUDDY_MIN_BLOCK_SIZE 32
+#define YTALLOC_BUDDY_MIN_BLOCK_SIZE 64
 #endif
 
 #define YTALLOC_BUDDY_TAG_SIZE 32
+#define YTALLOC_BUDDY_MIN_ALLOC_SIZE                                           \
+    (YTALLOC_BUDDY_MIN_BLOCK_SIZE - YTALLOC_BUDDY_TAG_SIZE)
 
 static_assert(YTALLOC_BUDDY_MAX_ORDERS > 0);
 static_assert(YTALLOC_BUDDY_MIN_BLOCK_SIZE > 0);
+static_assert(YTALLOC_BUDDY_TAG_SIZE < YTALLOC_BUDDY_MIN_BLOCK_SIZE);
+static_assert(YTALLOC_BUDDY_MIN_ALLOC_SIZE > 0);
 
 #if __cplusplus
 extern "C" {
