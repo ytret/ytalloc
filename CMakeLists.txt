@@ -18,7 +18,7 @@ set(YTALLOC_LIST_DO_CHECKS ON CACHE BOOL
 set(YTALLOC_MEMCPY "memcpy" CACHE STRING "memcpy function used by ytalloc.")
 set(YTALLOC_MEMSET "memset" CACHE STRING "memset function used by ytalloc.")
 
-add_library(ytalloc SHARED
+add_library(ytalloc STATIC
 
     src/alloc_buddy.c
     src/alloc_list.c
