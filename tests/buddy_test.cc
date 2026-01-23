@@ -170,3 +170,28 @@ TEST_F(BuddyTest, AllocNoSuitableBlock_WithFree) {
     void *const ptr2 = alloc_buddy(&alloc, YTALLOC_BUDDY_MIN_BLOCK_SIZE + 1);
     ASSERT_NE(ptr2, nullptr);
 }
+
+TEST_F(BuddyTest, AllocSplitMerge) {
+    // 1. Split the 64 byte block into two 32 byte blocks by allocating <32
+    //    bytes.
+    // 2. Free the allocated block.
+    // 3. Expect the two 32 byte blocks to be merged into the original 64 byte
+    //    block.
+
+    init_with_size(2 * YTALLOC_BUDDY_MIN_BLOCK_SIZE,
+                   2 * YTALLOC_BUDDY_MIN_BLOCK_SIZE);
+
+    ASSERT_EQ(alloc.num_orders, 2);
+    ASSERT_EQ(alloc.free_heads[0], 0);
+
+    void *const ptr1 = alloc_buddy(&alloc, YTALLOC_BUDDY_MIN_BLOCK_SIZE / 2);
+    ASSERT_NE(ptr1, nullptr);
+
+    ASSERT_NE(alloc.free_heads[0], 0);
+    ASSERT_EQ(alloc.free_heads[1], 0);
+
+    alloc_buddy_free(&alloc, ptr1);
+
+    ASSERT_EQ(alloc.free_heads[0], 0);
+    ASSERT_NE(alloc.free_heads[1], 0);
+}

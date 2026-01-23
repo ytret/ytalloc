@@ -257,6 +257,13 @@ static void prv_alloc_add_free_block(alloc_buddy_t *heap, uintptr_t block,
             tag->next = head;
             heap->free_heads[order] = block;
         } else {
+            if (buddy_tag->prev) {
+                buddy_tag->prev->next = buddy_tag->next;
+            } else {
+                heap->free_heads[order] = (uintptr_t)buddy_tag->next;
+            }
+            if (buddy_tag->next) { buddy_tag->next->prev = buddy_tag->prev; }
+
             const uintptr_t higher_block = block < buddy ? block : buddy;
             prv_alloc_add_free_block(heap, higher_block, order + 1);
         }
