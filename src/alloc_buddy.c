@@ -28,7 +28,7 @@ typedef struct alloc_buddy_tag {
 
 static_assert(sizeof(alloc_buddy_tag_t) == YTALLOC_BUDDY_TAG_SIZE);
 
-static uint64_t prv_alloc_calc_log2(uint64_t num);
+static size_t prv_alloc_calc_log2(size_t num);
 static size_t prv_alloc_calc_num_orders(size_t heap_size,
                                         size_t *out_min_block_size);
 static size_t prv_alloc_calc_block_order(const alloc_buddy_t *heap,
