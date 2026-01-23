@@ -201,3 +201,28 @@ TEST_F(BuddyTest, AllocSplitMerge) {
     ASSERT_EQ(alloc.free_heads[0], 0);
     ASSERT_NE(alloc.free_heads[1], 0);
 }
+
+TEST_F(BuddyTest, AllocSplitMerge2) {
+    // Same as AllocSplitMerge, except this time allocate both order 0 blocks
+    // and free them in such order that the right buddy is freed last.
+
+    init_with_size(2 * YTALLOC_BUDDY_MIN_BLOCK_SIZE,
+                   2 * YTALLOC_BUDDY_MIN_BLOCK_SIZE);
+
+    ASSERT_EQ(alloc.num_orders, 2);
+    ASSERT_EQ(alloc.free_heads[0], 0);
+
+    void *const ptr1 = alloc_buddy(&alloc, 1);
+    ASSERT_NE(ptr1, nullptr);
+    void *const ptr2 = alloc_buddy(&alloc, 1);
+    ASSERT_NE(ptr2, nullptr);
+
+    ASSERT_EQ(alloc.free_heads[0], 0);
+    ASSERT_EQ(alloc.free_heads[1], 0);
+
+    alloc_buddy_free(&alloc, ptr1);
+    alloc_buddy_free(&alloc, ptr2);
+
+    ASSERT_EQ(alloc.free_heads[0], 0);
+    ASSERT_NE(alloc.free_heads[1], 0);
+}
