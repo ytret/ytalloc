@@ -18,14 +18,14 @@ set(YTALLOC_LIST_DO_CHECKS ON CACHE BOOL
 set(YTALLOC_MEMCPY "memcpy" CACHE STRING "memcpy function used by ytalloc.")
 set(YTALLOC_MEMSET "memset" CACHE STRING "memset function used by ytalloc.")
 set(YTALLOC_ABORT "abort" CACHE STRING "abort function used by ytalloc.")
-set(YTALLOC_HAS_STDLIB ON CACHE BOOL "Use C standard library functions.")
+set(YTALLOC_VPRINTF "vprintf" CACHE STRING "vprintf function used by ytalloc.")
 
 add_library(ytalloc STATIC
 
     src/alloc_buddy.c
     src/alloc_list.c
+    src/alloc_osintf.c
     src/alloc_static.c
-
     src/aux/list.c
 
 )
@@ -50,6 +50,7 @@ target_compile_definitions(ytalloc PRIVATE
     -DYTALLOC_MEMCPY=${YTALLOC_MEMCPY}
     -DYTALLOC_MEMSET=${YTALLOC_MEMSET}
     -DYTALLOC_ABORT=${YTALLOC_ABORT}
+    -DYTALLOC_VPRINTF=${YTALLOC_VPRINTF}
 )
 if(YTALLOC_HAS_STDLIB)
     target_compile_definitions(ytalloc PRIVATE -DYTALLOC_HAS_STDLIB=1)
