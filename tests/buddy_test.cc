@@ -55,84 +55,90 @@ class BuddyTest : public testing::Test {
 };
 
 TEST_F(BuddyTest, InitNullHeapAborts) {
-    set_underlying_storage(32, 32);
+    set_underlying_storage(YTALLOC_BUDDY_MIN_BLOCK_SIZE,
+                           YTALLOC_BUDDY_MIN_BLOCK_SIZE);
     ASSERT_DEATH(alloc_buddy_init(NULL, storage, size), "");
 }
 
 TEST_F(BuddyTest, InitNullStartAborts) {
-    set_underlying_storage(32, 32);
+    set_underlying_storage(YTALLOC_BUDDY_MIN_BLOCK_SIZE,
+                           YTALLOC_BUDDY_MIN_BLOCK_SIZE);
     ASSERT_DEATH(alloc_buddy_init(&alloc, NULL, size), "");
 }
 
 TEST_F(BuddyTest, InitZeroSizeAborts) {
-    set_underlying_storage(32, 32);
+    set_underlying_storage(YTALLOC_BUDDY_MIN_BLOCK_SIZE,
+                           YTALLOC_BUDDY_MIN_BLOCK_SIZE);
     ASSERT_DEATH(alloc_buddy_init(&alloc, storage, 0), "");
 }
 
 TEST_F(BuddyTest, InitMisalignedStartAborts) {
-    set_underlying_storage(32, 16);
+    set_underlying_storage(YTALLOC_BUDDY_MIN_BLOCK_SIZE,
+                           YTALLOC_BUDDY_MIN_BLOCK_SIZE / 2);
     ASSERT_DEATH(
         alloc_buddy_init(&alloc, (void *)((uintptr_t)storage + 8), size), "");
 }
 
 TEST_F(BuddyTest, AllocZeroSize) {
-    init_with_size(32, 32);
+    init_with_size(YTALLOC_BUDDY_MIN_BLOCK_SIZE, YTALLOC_BUDDY_MIN_BLOCK_SIZE);
     void *const ptr = alloc_buddy(&alloc, 0);
     EXPECT_EQ(ptr, nullptr);
 }
 
 TEST_F(BuddyTest, AllocMaxSize_1Alloc) {
-    init_with_size(32, 32);
+    init_with_size(YTALLOC_BUDDY_MIN_BLOCK_SIZE, YTALLOC_BUDDY_MIN_BLOCK_SIZE);
 
-    void *const ptr = alloc_buddy(&alloc, 32);
+    void *const ptr = alloc_buddy(&alloc, YTALLOC_BUDDY_MIN_ALLOC_SIZE);
     ASSERT_NE(ptr, nullptr);
 
-    random_write(ptr, 32);
+    random_write(ptr, YTALLOC_BUDDY_MIN_ALLOC_SIZE);
     check_writes();
 }
 
 TEST_F(BuddyTest, AllocMaxSize_2Allocs) {
-    init_with_size(64, 64);
+    init_with_size(2 * YTALLOC_BUDDY_MIN_BLOCK_SIZE,
+                   2 * YTALLOC_BUDDY_MIN_BLOCK_SIZE);
 
-    void *const ptr1 = alloc_buddy(&alloc, 32);
+    void *const ptr1 = alloc_buddy(&alloc, YTALLOC_BUDDY_MIN_ALLOC_SIZE);
     ASSERT_NE(ptr1, nullptr);
 
-    void *const ptr2 = alloc_buddy(&alloc, 32);
+    void *const ptr2 = alloc_buddy(&alloc, YTALLOC_BUDDY_MIN_ALLOC_SIZE);
     ASSERT_NE(ptr2, nullptr);
 
-    random_write(ptr1, 32);
-    random_write(ptr2, 32);
+    random_write(ptr1, YTALLOC_BUDDY_MIN_ALLOC_SIZE);
+    random_write(ptr2, YTALLOC_BUDDY_MIN_ALLOC_SIZE);
     check_writes();
 }
 
 TEST_F(BuddyTest, AllocMaxSize_3rdAllocFails) {
-    init_with_size(64, 64);
+    init_with_size(2 * YTALLOC_BUDDY_MIN_BLOCK_SIZE,
+                   2 * YTALLOC_BUDDY_MIN_BLOCK_SIZE);
 
-    void *const ptr1 = alloc_buddy(&alloc, 32);
+    void *const ptr1 = alloc_buddy(&alloc, YTALLOC_BUDDY_MIN_ALLOC_SIZE);
     ASSERT_NE(ptr1, nullptr);
 
-    void *const ptr2 = alloc_buddy(&alloc, 32);
+    void *const ptr2 = alloc_buddy(&alloc, YTALLOC_BUDDY_MIN_ALLOC_SIZE);
     ASSERT_NE(ptr2, nullptr);
 
-    void *const ptr3 = alloc_buddy(&alloc, 32);
+    void *const ptr3 = alloc_buddy(&alloc, YTALLOC_BUDDY_MIN_ALLOC_SIZE);
     ASSERT_EQ(ptr3, nullptr);
 
-    random_write(ptr1, 32);
-    random_write(ptr2, 32);
+    random_write(ptr1, YTALLOC_BUDDY_MIN_ALLOC_SIZE);
+    random_write(ptr2, YTALLOC_BUDDY_MIN_ALLOC_SIZE);
     check_writes();
 }
 
 TEST_F(BuddyTest, AllocTooMuchFails) {
-    init_with_size(32, 32);
+    init_with_size(YTALLOC_BUDDY_MIN_BLOCK_SIZE, YTALLOC_BUDDY_MIN_BLOCK_SIZE);
 
-    void *const ptr = alloc_buddy(&alloc, 64);
+    void *const ptr = alloc_buddy(&alloc, 2 * YTALLOC_BUDDY_MIN_BLOCK_SIZE);
     ASSERT_EQ(ptr, nullptr);
 }
 
 TEST_F(BuddyTest, AllocRoundUpSize) {
     init_with_size(YTALLOC_BUDDY_MIN_BLOCK_SIZE, YTALLOC_BUDDY_MIN_BLOCK_SIZE);
 
-    void *const ptr1 = alloc_buddy(&alloc, YTALLOC_BUDDY_MIN_BLOCK_SIZE - 1);
+    void *const ptr1 = alloc_buddy(&alloc, YTALLOC_BUDDY_MIN_ALLOC_SIZE);
     ASSERT_NE(ptr1, nullptr);
 
     void *const ptr2 = alloc_buddy(&alloc, 1);
