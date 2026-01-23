@@ -17,6 +17,8 @@ set(YTALLOC_LIST_DO_CHECKS ON CACHE BOOL
     "Perform heap integrity checks in alloc_list() and alloc_list_free().")
 set(YTALLOC_MEMCPY "memcpy" CACHE STRING "memcpy function used by ytalloc.")
 set(YTALLOC_MEMSET "memset" CACHE STRING "memset function used by ytalloc.")
+set(YTALLOC_ABORT "abort" CACHE STRING "abort function used by ytalloc.")
+set(YTALLOC_HAS_STDLIB ON CACHE BOOL "Use C standard library functions.")
 
 add_library(ytalloc STATIC
 
@@ -47,6 +49,10 @@ endif()
 target_compile_definitions(ytalloc PRIVATE
     -DYTALLOC_MEMCPY=${YTALLOC_MEMCPY}
     -DYTALLOC_MEMSET=${YTALLOC_MEMSET}
+    -DYTALLOC_ABORT=${YTALLOC_ABORT}
 )
+if(YTALLOC_HAS_STDLIB)
+    target_compile_definitions(ytalloc PRIVATE -DYTALLOC_HAS_STDLIB=1)
+endif()
 
 add_subdirectory(tests)

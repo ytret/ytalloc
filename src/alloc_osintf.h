@@ -1,7 +1,11 @@
 #pragma once
 
 #include <stddef.h>
+
+#ifdef YTALLOC_HAS_STDLIB
+#include <stdlib.h>
 #include <string.h>
+#endif
 
 #ifndef YTALLOC_MEMCPY
 #define YTALLOC_MEMCPY memcpy
@@ -9,6 +13,10 @@
 
 #ifndef YTALLOC_MEMSET
 #define YTALLOC_MEMSET memset
+#endif
+
+#ifndef YTALLOC_ABORT
+#define YTALLOC_ABORT abort
 #endif
 
 [[gnu::always_inline]]

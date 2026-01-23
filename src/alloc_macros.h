@@ -1,7 +1,10 @@
 #pragma once
 
-#include <stdio.h>  // IWYU pragma: keep
-#include <stdlib.h> // IWYU pragma: keep
+#ifdef YTALLOC_HAS_STDLIB
+#include <stdio.h> // IWYU pragma: keep
+#endif
+
+#include "alloc_osintf.h"
 
 #define PRINTS_ALWAYS(X)            PRINTF_IMPL("%s", X)
 #define PRINTF_ALWAYS(FMT, ...)     PRINTF_IMPL(FMT, __VA_ARGS__)
@@ -20,10 +23,16 @@
 #define ASSERTF_DEBUG(x, FMT, ...)
 #endif
 
+#ifdef YTALLOC_HAS_STDLIB
 #define PRINTF_IMPL(FMT, ...)                                                  \
     do {                                                                       \
         fprintf(stderr, "" FMT "\n", __VA_ARGS__);                             \
     } while (0)
+#else
+#define PRINTF_IMPL(FMT, ...)                                                  \
+    do {                                                                       \
+    } while (0)
+#endif
 
 #define ASSERT_IMPL(X, HAS_MSG, FMT, ...)                                      \
     do {                                                                       \
@@ -34,6 +43,6 @@
             PRINTF_ALWAYS("        File: %s", __FILE__);                       \
             PRINTF_ALWAYS("    Function: %s", __FUNCTION__);                   \
             PRINTF_ALWAYS("        Line: %u", __LINE__);                       \
-            abort();                                                           \
+            YTALLOC_ABORT();                                                   \
         }                                                                      \
     } while (0)
