@@ -13,6 +13,7 @@ set(CMAKE_C_FLAGS_DEBUG "-O0 -g")
 set(CMAKE_C_FLAGS_RELEASE "-O3")
 set(CMAKE_C_FLAGS_RELWITHDEBINFO "-O3 -g")
 
+set(YTALLOC_BUILD_TESTS ON CACHE BOOL "Build the ytalloc tests.")
 set(YTALLOC_LIST_DO_CHECKS ON CACHE BOOL
     "Perform heap integrity checks in alloc_list() and alloc_list_free().")
 set(YTALLOC_MEMCPY "memcpy" CACHE STRING "memcpy function used by ytalloc.")
@@ -52,8 +53,7 @@ target_compile_definitions(ytalloc PRIVATE
     -DYTALLOC_ABORT=${YTALLOC_ABORT}
     -DYTALLOC_VPRINTF=${YTALLOC_VPRINTF}
 )
-if(YTALLOC_HAS_STDLIB)
-    target_compile_definitions(ytalloc PRIVATE -DYTALLOC_HAS_STDLIB=1)
-endif()
 
-add_subdirectory(tests)
+if(YTALLOC_BUILD_TESTS)
+    add_subdirectory(tests)
+endif()
