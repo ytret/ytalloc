@@ -184,7 +184,7 @@ static size_t prv_alloc_calc_pow2_ge(size_t num) {
  * Returns the first free block of the specified order.
  *
  * - Splits the higher order block if needed.
- * - Manipulates the free blocks list.
+ * - Marks the block as used and removes it from the free list.
  *
  * @returns Pointer to the allocated block or `NULL` if no block could be found.
  */
@@ -226,6 +226,17 @@ static void *prv_alloc_get_free_block(alloc_buddy_t *heap, size_t order) {
     }
 }
 
+/**
+ * Adds the specified block to the free block list.
+ *
+ * - Marks the block as free.
+ * - Adds it to the free list.
+ * - Merges the block with its buddy if the buddy is free too.
+ *
+ * @param heap  Buddy heap struct pointer.
+ * @param block Address of the block.
+ * @param order Order of the block.
+ */
 static void prv_alloc_add_free_block(alloc_buddy_t *heap, uintptr_t block,
                                      uint8_t order) {
     alloc_buddy_tag_t *const tag = (alloc_buddy_tag_t *)block;
