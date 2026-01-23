@@ -24,26 +24,29 @@ void alloc_list_init(alloc_list_t *heap, void *start, size_t size) {
     ASSERT_ALWAYS(heap != NULL);
     ASSERT_ALWAYS(start != NULL);
 
-    constexpr size_t min_size = sizeof(list_t) + sizeof(alloc_tag_t);
+    constexpr size_t min_size = sizeof(alloc_tag_t);
 
     ASSERTF_ALWAYS(size >= min_size, "size %zu is too small, need at least %zu",
                    size, min_size);
-    ASSERTF_ALWAYS((uintptr_t)start % alignof(list_t) == 0,
-                   "start %p has bad alignment for type list_t", start);
+    ASSERTF_ALWAYS((uintptr_t)start % alignof(alloc_tag_t) == 0,
+                   "start %p has bad alignment for type alloc_tag_t", start);
 
     alloc_memset(heap, 0, sizeof(*heap));
+
+    static_assert(sizeof(heap->prv) == sizeof(list_t));
+    static_assert(offsetof(alloc_list_t, prv) % _Alignof(list_t) == 0);
 
     heap->start = (uintptr_t)start;
     heap->end = heap->start + size;
 
-    heap->tag_list = (list_t *)heap->start;
+    heap->tag_list = (list_t *)&heap->prv[0];
     list_init(heap->tag_list, NULL);
 
     // Create a tag for the free chunk that is the most part of the heap.
-    alloc_tag_t *const tag = (alloc_tag_t *)(heap->start + sizeof(list_t));
+    alloc_tag_t *const tag = (alloc_tag_t *)heap->start;
     alloc_memset(tag, 0, sizeof(*tag));
     tag->used = false;
-    tag->start = heap->start + sizeof(list_t) + sizeof(alloc_tag_t);
+    tag->start = heap->start + sizeof(alloc_tag_t);
     tag->size = heap->end - tag->start;
     list_append(heap->tag_list, &tag->node);
 

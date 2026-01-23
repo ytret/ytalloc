@@ -30,6 +30,12 @@ typedef struct {
     uintptr_t end;
 
     list_t *tag_list;
+
+#if SIZE_MAX == UINT32_MAX
+    [[gnu::aligned(4)]] uint8_t prv[8];
+#else
+    [[gnu::aligned(8)]] uint8_t prv[16];
+#endif
 } alloc_list_t;
 
 typedef struct {
