@@ -26,6 +26,7 @@ add_library(ytalloc STATIC
     src/alloc_buddy.c
     src/alloc_list.c
     src/alloc_osintf.c
+    src/alloc_slab.c
     src/alloc_static.c
     src/aux/list.c
 
