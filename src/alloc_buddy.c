@@ -143,7 +143,8 @@ static size_t prv_alloc_calc_num_orders(size_t heap_size,
  */
 static size_t prv_alloc_calc_block_order(const alloc_buddy_t *heap,
                                          size_t alloc_size) {
-    const size_t size_pow2 = prv_alloc_calc_pow2_ge(alloc_size);
+    const size_t need_size = YTALLOC_BUDDY_TAG_SIZE + alloc_size;
+    const size_t size_pow2 = prv_alloc_calc_pow2_ge(need_size);
     if (size_pow2 <= heap->min_block_size) { return 0; }
     const size_t order = prv_alloc_calc_log2(size_pow2 / heap->min_block_size);
     return order;
@@ -252,8 +253,10 @@ static void prv_alloc_add_free_block(alloc_buddy_t *heap, uintptr_t block,
         if (buddy_tag->used) {
             alloc_buddy_tag_t *const head =
                 (alloc_buddy_tag_t *)heap->free_heads[order];
-            ASSERT_DEBUG(!head->used);
-            head->prev = tag;
+            if (head) {
+                ASSERT_DEBUG(!head->used);
+                head->prev = tag;
+            }
             tag->next = head;
             heap->free_heads[order] = block;
         } else {
@@ -274,7 +277,7 @@ static void prv_alloc_add_free_block(alloc_buddy_t *heap, uintptr_t block,
 
 static uintptr_t prv_alloc_get_buddy(const alloc_buddy_t *heap, uintptr_t block,
                                      size_t order) {
-    const size_t block_size = heap->min_block_size + ((size_t)1U << order);
+    const size_t block_size = heap->min_block_size * ((size_t)1U << order);
     ASSERT_DEBUG((block & (block_size - 1)) == 0);
     return block ^ block_size;
 }
