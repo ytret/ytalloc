@@ -276,3 +276,21 @@ TEST_F(BuddyTest, AllocSplitMerge2) {
     ASSERT_EQ(alloc.free_heads[0], 0);
     ASSERT_NE(alloc.free_heads[1], 0);
 }
+
+TEST_F(BuddyTest, AllocReturnsAlignedAddress) {
+    init_with_size(2 * YTALLOC_BUDDY_MIN_BLOCK_SIZE,
+                   2 * YTALLOC_BUDDY_MIN_BLOCK_SIZE);
+
+    constexpr size_t alloc_size = YTALLOC_BUDDY_MIN_ALLOC_SIZE;
+
+    void *const ptr1 = alloc_buddy(&alloc, alloc_size);
+    void *const ptr2 = alloc_buddy(&alloc, alloc_size);
+    ASSERT_NE(ptr1, nullptr);
+    ASSERT_NE(ptr2, nullptr);
+    ASSERT_NE(ptr1, ptr2);
+
+    const uintptr_t expected_alignment = YTALLOC_BUDDY_MIN_BLOCK_SIZE;
+
+    EXPECT_EQ(reinterpret_cast<uintptr_t>(ptr1) % expected_alignment, 0);
+    EXPECT_EQ(reinterpret_cast<uintptr_t>(ptr2) % expected_alignment, 0);
+}
