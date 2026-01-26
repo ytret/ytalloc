@@ -41,9 +41,11 @@ static void prv_alloc_add_free_block(alloc_buddy_t *heap, uintptr_t block,
 static uintptr_t prv_alloc_get_buddy(const alloc_buddy_t *heap, uintptr_t block,
                                      size_t order);
 
-void alloc_buddy_init(alloc_buddy_t *heap, void *v_start, size_t size) {
+void alloc_buddy_init(alloc_buddy_t *heap, void *v_start, size_t size,
+                      void *free_heads, size_t free_heads_size) {
     ASSERT_ALWAYS(heap != NULL);
     ASSERT_ALWAYS(v_start != NULL);
+    ASSERT_ALWAYS(free_heads != NULL);
 
     ASSERTF_ALWAYS(size >= YTALLOC_BUDDY_MIN_BLOCK_SIZE, "size must be >= %d",
                    YTALLOC_BUDDY_MIN_BLOCK_SIZE);
@@ -62,12 +64,18 @@ void alloc_buddy_init(alloc_buddy_t *heap, void *v_start, size_t size) {
     const size_t num_orders =
         prv_alloc_calc_num_orders(rounded_size, &min_block_size);
 
+    ASSERTF_ALWAYS(free_heads_size >= sizeof(uintptr_t) * num_orders,
+                   "free_heads_size must be >= %zu",
+                   sizeof(uintptr_t) * num_orders);
+    alloc_memset(free_heads, 0, free_heads_size);
+
     alloc_memset(heap, 0, sizeof(*heap));
     heap->start = start;
     heap->end = start + size;
     heap->used_size = rounded_size;
     heap->min_block_size = min_block_size;
     heap->num_orders = num_orders;
+    heap->free_heads = free_heads;
 
     alloc_buddy_tag_t *const biggest_block = v_start;
     biggest_block->prev = NULL;

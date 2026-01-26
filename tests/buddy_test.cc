@@ -8,12 +8,14 @@ class BuddyTest : public testing::Test {
   protected:
     void SetUp() override {
         storage = nullptr;
+        free_heads = nullptr;
     }
 
     void TearDown() override {
         if (storage) {
             operator delete[](storage, std::align_val_t(alignment));
         }
+        if (free_heads) { delete[] free_heads; }
         for (DuplicatedWrite &write : writes) {
             write.delete_copy();
         }
@@ -23,11 +25,15 @@ class BuddyTest : public testing::Test {
         storage = new (std::align_val_t(alignment)) uint8_t[size];
         this->size = size;
         this->alignment = alignment;
+
+        const size_t num_blocks = size / YTALLOC_BUDDY_MIN_BLOCK_SIZE;
+        free_heads = new uintptr_t[num_blocks];
+        free_heads_size = sizeof(uintptr_t) * num_blocks;
     }
 
     void init_with_size(size_t size, size_t alignment) {
         set_underlying_storage(size, alignment);
-        alloc_buddy_init(&alloc, storage, size);
+        alloc_buddy_init(&alloc, storage, size, free_heads, free_heads_size);
     }
 
     void random_write(void *ptr, size_t num_bytes) {
@@ -51,32 +57,52 @@ class BuddyTest : public testing::Test {
     size_t size;
     size_t alignment;
 
+    uintptr_t *free_heads;
+    size_t free_heads_size;
+
     std::vector<DuplicatedWrite> writes;
 };
 
 TEST_F(BuddyTest, InitNullHeapAborts) {
     set_underlying_storage(YTALLOC_BUDDY_MIN_BLOCK_SIZE,
                            YTALLOC_BUDDY_MIN_BLOCK_SIZE);
-    ASSERT_DEATH(alloc_buddy_init(NULL, storage, size), "");
+    ASSERT_DEATH(
+        alloc_buddy_init(NULL, storage, size, free_heads, free_heads_size), "");
 }
 
 TEST_F(BuddyTest, InitNullStartAborts) {
     set_underlying_storage(YTALLOC_BUDDY_MIN_BLOCK_SIZE,
                            YTALLOC_BUDDY_MIN_BLOCK_SIZE);
-    ASSERT_DEATH(alloc_buddy_init(&alloc, NULL, size), "");
+    ASSERT_DEATH(
+        alloc_buddy_init(&alloc, NULL, size, free_heads, free_heads_size), "");
 }
 
 TEST_F(BuddyTest, InitZeroSizeAborts) {
     set_underlying_storage(YTALLOC_BUDDY_MIN_BLOCK_SIZE,
                            YTALLOC_BUDDY_MIN_BLOCK_SIZE);
-    ASSERT_DEATH(alloc_buddy_init(&alloc, storage, 0), "");
+    ASSERT_DEATH(
+        alloc_buddy_init(&alloc, storage, 0, free_heads, free_heads_size), "");
 }
 
 TEST_F(BuddyTest, InitMisalignedStartAborts) {
     set_underlying_storage(YTALLOC_BUDDY_MIN_BLOCK_SIZE,
                            YTALLOC_BUDDY_MIN_BLOCK_SIZE / 2);
-    ASSERT_DEATH(
-        alloc_buddy_init(&alloc, (void *)((uintptr_t)storage + 8), size), "");
+    ASSERT_DEATH(alloc_buddy_init(&alloc, (void *)((uintptr_t)storage + 8),
+                                  size, free_heads, free_heads_size),
+                 "");
+}
+
+TEST_F(BuddyTest, InitNullFreeHeadsBuffer) {
+    set_underlying_storage(YTALLOC_BUDDY_MIN_BLOCK_SIZE,
+                           YTALLOC_BUDDY_MIN_BLOCK_SIZE);
+    ASSERT_DEATH(alloc_buddy_init(&alloc, storage, size, NULL, free_heads_size),
+                 "");
+}
+
+TEST_F(BuddyTest, InitZeroSizeFreeHeadsBuffer) {
+    set_underlying_storage(YTALLOC_BUDDY_MIN_BLOCK_SIZE,
+                           YTALLOC_BUDDY_MIN_BLOCK_SIZE);
+    ASSERT_DEATH(alloc_buddy_init(&alloc, storage, size, free_heads, 0), "");
 }
 
 TEST_F(BuddyTest, AllocZeroSize) {

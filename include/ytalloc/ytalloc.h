@@ -52,7 +52,7 @@ typedef struct {
 
     size_t min_block_size;
     size_t num_orders;
-    uintptr_t free_heads[YTALLOC_BUDDY_MAX_ORDERS];
+    uintptr_t *free_heads;
 } alloc_buddy_t;
 
 typedef struct {
@@ -71,7 +71,8 @@ void alloc_list_free(alloc_list_t *heap, void *ptr);
 void alloc_static_init(alloc_static_t *heap, void *start, size_t size);
 void *alloc_static(alloc_static_t *heap, size_t size);
 
-void alloc_buddy_init(alloc_buddy_t *heap, void *start, size_t size);
+void alloc_buddy_init(alloc_buddy_t *heap, void *start, size_t size,
+                      void *free_heads, size_t free_heads_size);
 void *alloc_buddy(alloc_buddy_t *heap, size_t size);
 void alloc_buddy_free(alloc_buddy_t *heap, void *ptr);
 
