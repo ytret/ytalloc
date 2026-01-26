@@ -3,18 +3,17 @@
 
 #include "alloc_macros.h"
 #include "alloc_osintf.h"
+#include "aux/auxmath.h"
 
 typedef struct alloc_buddy_tag {
     struct alloc_buddy_tag *prev;
     struct alloc_buddy_tag *next;
 } alloc_buddy_tag_t;
 
-static size_t prv_alloc_calc_log2(size_t num);
 static size_t prv_alloc_calc_num_orders(size_t heap_size,
                                         size_t *out_min_block_size);
 static size_t prv_alloc_calc_block_order(const alloc_buddy_t *heap,
                                          size_t alloc_size);
-static size_t prv_alloc_calc_pow2_ge(size_t num);
 
 static void *prv_alloc_get_free_block(alloc_buddy_t *heap, size_t order);
 static void prv_alloc_add_free_block(alloc_buddy_t *heap, uintptr_t block,
@@ -38,7 +37,7 @@ void alloc_buddy_init(alloc_buddy_t *heap, void *v_start, size_t size,
 
     const uintptr_t start = (uintptr_t)v_start;
 
-    const size_t size_log2 = prv_alloc_calc_log2(size);
+    const size_t size_log2 = alloc_calc_log2(size);
     const size_t rounded_size = (size_t)1 << size_log2;
     ASSERTF_ALWAYS(size_log2 > 0, "size %zu is too small", size);
     ASSERTF_ALWAYS(
@@ -109,14 +108,6 @@ void alloc_buddy_free(alloc_buddy_t *heap, void *ptr, size_t size) {
     prv_alloc_add_free_block(heap, block, order);
 }
 
-static size_t prv_alloc_calc_log2(size_t num) {
-    size_t log2 = 0;
-    while (num >>= 1) {
-        log2++;
-    }
-    return log2;
-}
-
 static size_t prv_alloc_calc_num_orders(size_t heap_size,
                                         size_t *out_min_block_size) {
     ASSERT_DEBUG((heap_size & (heap_size - 1)) == 0);
@@ -142,41 +133,10 @@ static size_t prv_alloc_calc_num_orders(size_t heap_size,
  */
 static size_t prv_alloc_calc_block_order(const alloc_buddy_t *heap,
                                          size_t alloc_size) {
-    const size_t size_pow2 = prv_alloc_calc_pow2_ge(alloc_size);
+    const size_t size_pow2 = alloc_calc_pow2_ge(alloc_size);
     if (size_pow2 <= heap->min_block_size) { return 0; }
-    const size_t order = prv_alloc_calc_log2(size_pow2 / heap->min_block_size);
+    const size_t order = alloc_calc_log2(size_pow2 / heap->min_block_size);
     return order;
-}
-
-/**
- * Rounds @a num up to the next highest power of two.
- * @note
- * If the next highest power of two for @a num is bigger than `SIZE_MAX`, then
- * this function returns `0`.
- */
-static size_t prv_alloc_calc_pow2_ge(size_t num) {
-    if (num == 0) { return 0; }
-    if ((num & (num - 1)) == 0) { return num; }
-
-#if SIZE_MAX == UINT32_MAX
-    if ((num & (1U << 31U)) != 0) { return 0; }
-#else
-    if ((num & (1ULL << 63ULL)) != 0) { return 0; }
-#endif
-
-    num--;
-    num |= num >> 1;
-    num |= num >> 2;
-    num |= num >> 4;
-    num |= num >> 8;
-    num |= num >> 16;
-#if SIZE_MAX == UINT64_MAX
-    num |= num >> 32;
-#endif
-    ASSERT_DEBUG(num < SIZE_MAX);
-    num++;
-
-    return num;
 }
 
 /**
