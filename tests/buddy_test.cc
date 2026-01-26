@@ -32,8 +32,7 @@ class BuddyTest : public testing::Test {
         free_heads = new uintptr_t[num_orders];
         free_heads_size = sizeof(uintptr_t) * num_orders;
 
-        const size_t num_order0_blocks =
-            YTALLOC_BUDDY_MIN_BLOCK_SIZE * (1 << YTALLOC_BUDDY_MAX_ORDERS);
+        const size_t num_order0_blocks = 1 + size / YTALLOC_BUDDY_MAX_ORDERS;
         bitmap_size = ((num_order0_blocks + 7) & ~7) / 8;
         bitmap = new uint8_t[bitmap_size];
     }
