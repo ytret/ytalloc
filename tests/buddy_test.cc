@@ -9,6 +9,7 @@ class BuddyTest : public testing::Test {
     void SetUp() override {
         storage = nullptr;
         free_heads = nullptr;
+        bitmap = nullptr;
     }
 
     void TearDown() override {
@@ -16,6 +17,7 @@ class BuddyTest : public testing::Test {
             operator delete[](storage, std::align_val_t(alignment));
         }
         if (free_heads) { delete[] free_heads; }
+        if (bitmap) { delete[] bitmap; }
         for (DuplicatedWrite &write : writes) {
             write.delete_copy();
         }
@@ -26,14 +28,20 @@ class BuddyTest : public testing::Test {
         this->size = size;
         this->alignment = alignment;
 
-        const size_t num_blocks = size / YTALLOC_BUDDY_MIN_BLOCK_SIZE;
-        free_heads = new uintptr_t[num_blocks];
-        free_heads_size = sizeof(uintptr_t) * num_blocks;
+        const size_t num_orders = YTALLOC_BUDDY_MAX_ORDERS;
+        free_heads = new uintptr_t[num_orders];
+        free_heads_size = sizeof(uintptr_t) * num_orders;
+
+        const size_t num_order0_blocks =
+            YTALLOC_BUDDY_MIN_BLOCK_SIZE * (1 << YTALLOC_BUDDY_MAX_ORDERS);
+        bitmap_size = ((num_order0_blocks + 7) & ~7) / 8;
+        bitmap = new uint8_t[bitmap_size];
     }
 
     void init_with_size(size_t size, size_t alignment) {
         set_underlying_storage(size, alignment);
-        alloc_buddy_init(&alloc, storage, size, free_heads, free_heads_size);
+        alloc_buddy_init(&alloc, storage, size, free_heads, free_heads_size,
+                         bitmap, bitmap_size);
     }
 
     void random_write(void *ptr, size_t num_bytes) {
@@ -60,49 +68,59 @@ class BuddyTest : public testing::Test {
     uintptr_t *free_heads;
     size_t free_heads_size;
 
+    uint8_t *bitmap;
+    size_t bitmap_size;
+
     std::vector<DuplicatedWrite> writes;
 };
 
 TEST_F(BuddyTest, InitNullHeapAborts) {
     set_underlying_storage(YTALLOC_BUDDY_MIN_BLOCK_SIZE,
                            YTALLOC_BUDDY_MIN_BLOCK_SIZE);
-    ASSERT_DEATH(
-        alloc_buddy_init(NULL, storage, size, free_heads, free_heads_size), "");
+    ASSERT_DEATH(alloc_buddy_init(NULL, storage, size, free_heads,
+                                  free_heads_size, bitmap, bitmap_size),
+                 "");
 }
 
 TEST_F(BuddyTest, InitNullStartAborts) {
     set_underlying_storage(YTALLOC_BUDDY_MIN_BLOCK_SIZE,
                            YTALLOC_BUDDY_MIN_BLOCK_SIZE);
-    ASSERT_DEATH(
-        alloc_buddy_init(&alloc, NULL, size, free_heads, free_heads_size), "");
+    ASSERT_DEATH(alloc_buddy_init(&alloc, NULL, size, free_heads,
+                                  free_heads_size, bitmap, bitmap_size),
+                 "");
 }
 
 TEST_F(BuddyTest, InitZeroSizeAborts) {
     set_underlying_storage(YTALLOC_BUDDY_MIN_BLOCK_SIZE,
                            YTALLOC_BUDDY_MIN_BLOCK_SIZE);
-    ASSERT_DEATH(
-        alloc_buddy_init(&alloc, storage, 0, free_heads, free_heads_size), "");
+    ASSERT_DEATH(alloc_buddy_init(&alloc, storage, 0, free_heads,
+                                  free_heads_size, bitmap, bitmap_size),
+                 "");
 }
 
 TEST_F(BuddyTest, InitMisalignedStartAborts) {
     set_underlying_storage(YTALLOC_BUDDY_MIN_BLOCK_SIZE,
                            YTALLOC_BUDDY_MIN_BLOCK_SIZE / 2);
     ASSERT_DEATH(alloc_buddy_init(&alloc, (void *)((uintptr_t)storage + 8),
-                                  size, free_heads, free_heads_size),
+                                  size, free_heads, free_heads_size, bitmap,
+                                  bitmap_size),
                  "");
 }
 
 TEST_F(BuddyTest, InitNullFreeHeadsBuffer) {
     set_underlying_storage(YTALLOC_BUDDY_MIN_BLOCK_SIZE,
                            YTALLOC_BUDDY_MIN_BLOCK_SIZE);
-    ASSERT_DEATH(alloc_buddy_init(&alloc, storage, size, NULL, free_heads_size),
+    ASSERT_DEATH(alloc_buddy_init(&alloc, storage, size, NULL, free_heads_size,
+                                  bitmap, bitmap_size),
                  "");
 }
 
 TEST_F(BuddyTest, InitZeroSizeFreeHeadsBuffer) {
     set_underlying_storage(YTALLOC_BUDDY_MIN_BLOCK_SIZE,
                            YTALLOC_BUDDY_MIN_BLOCK_SIZE);
-    ASSERT_DEATH(alloc_buddy_init(&alloc, storage, size, free_heads, 0), "");
+    ASSERT_DEATH(alloc_buddy_init(&alloc, storage, size, free_heads, 0, bitmap,
+                                  bitmap_size),
+                 "");
 }
 
 TEST_F(BuddyTest, AllocZeroSize) {
@@ -194,10 +212,12 @@ TEST_F(BuddyTest, AllocNoSuitableBlock_WithFree) {
     init_with_size(2 * YTALLOC_BUDDY_MIN_BLOCK_SIZE,
                    2 * YTALLOC_BUDDY_MIN_BLOCK_SIZE);
 
-    void *const ptr1 = alloc_buddy(&alloc, YTALLOC_BUDDY_MIN_BLOCK_SIZE / 2);
+    constexpr size_t alloc_size = YTALLOC_BUDDY_MIN_BLOCK_SIZE / 2;
+
+    void *const ptr1 = alloc_buddy(&alloc, alloc_size);
     ASSERT_NE(ptr1, nullptr);
 
-    alloc_buddy_free(&alloc, ptr1);
+    alloc_buddy_free(&alloc, ptr1, alloc_size);
 
     void *const ptr2 = alloc_buddy(&alloc, YTALLOC_BUDDY_MIN_BLOCK_SIZE + 1);
     ASSERT_NE(ptr2, nullptr);
@@ -216,13 +236,15 @@ TEST_F(BuddyTest, AllocSplitMerge) {
     ASSERT_EQ(alloc.num_orders, 2);
     ASSERT_EQ(alloc.free_heads[0], 0);
 
-    void *const ptr1 = alloc_buddy(&alloc, YTALLOC_BUDDY_MIN_BLOCK_SIZE / 2);
+    constexpr size_t alloc_size = YTALLOC_BUDDY_MIN_BLOCK_SIZE / 2;
+
+    void *const ptr1 = alloc_buddy(&alloc, alloc_size);
     ASSERT_NE(ptr1, nullptr);
 
     ASSERT_NE(alloc.free_heads[0], 0);
     ASSERT_EQ(alloc.free_heads[1], 0);
 
-    alloc_buddy_free(&alloc, ptr1);
+    alloc_buddy_free(&alloc, ptr1, alloc_size);
 
     ASSERT_EQ(alloc.free_heads[0], 0);
     ASSERT_NE(alloc.free_heads[1], 0);
@@ -238,16 +260,18 @@ TEST_F(BuddyTest, AllocSplitMerge2) {
     ASSERT_EQ(alloc.num_orders, 2);
     ASSERT_EQ(alloc.free_heads[0], 0);
 
-    void *const ptr1 = alloc_buddy(&alloc, 1);
+    constexpr size_t alloc_size = 1;
+
+    void *const ptr1 = alloc_buddy(&alloc, alloc_size);
     ASSERT_NE(ptr1, nullptr);
-    void *const ptr2 = alloc_buddy(&alloc, 1);
+    void *const ptr2 = alloc_buddy(&alloc, alloc_size);
     ASSERT_NE(ptr2, nullptr);
 
     ASSERT_EQ(alloc.free_heads[0], 0);
     ASSERT_EQ(alloc.free_heads[1], 0);
 
-    alloc_buddy_free(&alloc, ptr1);
-    alloc_buddy_free(&alloc, ptr2);
+    alloc_buddy_free(&alloc, ptr1, alloc_size);
+    alloc_buddy_free(&alloc, ptr2, alloc_size);
 
     ASSERT_EQ(alloc.free_heads[0], 0);
     ASSERT_NE(alloc.free_heads[1], 0);

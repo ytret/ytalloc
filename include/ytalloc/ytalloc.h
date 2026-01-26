@@ -4,19 +4,16 @@
 #include <stdint.h>
 
 #ifndef YTALLOC_BUDDY_MAX_ORDERS
-#define YTALLOC_BUDDY_MAX_ORDERS 32
+#define YTALLOC_BUDDY_MAX_ORDERS 6
 #endif
 #ifndef YTALLOC_BUDDY_MIN_BLOCK_SIZE
 #define YTALLOC_BUDDY_MIN_BLOCK_SIZE 64
 #endif
 
-#define YTALLOC_BUDDY_TAG_SIZE 32
-#define YTALLOC_BUDDY_MIN_ALLOC_SIZE                                           \
-    (YTALLOC_BUDDY_MIN_BLOCK_SIZE - YTALLOC_BUDDY_TAG_SIZE)
+#define YTALLOC_BUDDY_MIN_ALLOC_SIZE YTALLOC_BUDDY_MIN_BLOCK_SIZE
 
 static_assert(YTALLOC_BUDDY_MAX_ORDERS > 0);
 static_assert(YTALLOC_BUDDY_MIN_BLOCK_SIZE > 0);
-static_assert(YTALLOC_BUDDY_TAG_SIZE < YTALLOC_BUDDY_MIN_BLOCK_SIZE);
 static_assert(YTALLOC_BUDDY_MIN_ALLOC_SIZE > 0);
 
 #if __cplusplus
@@ -53,6 +50,8 @@ typedef struct {
     size_t min_block_size;
     size_t num_orders;
     uintptr_t *free_heads;
+    uint8_t *usage_bitmap;
+    size_t bitmap_size;
 } alloc_buddy_t;
 
 typedef struct {
@@ -72,9 +71,10 @@ void alloc_static_init(alloc_static_t *heap, void *start, size_t size);
 void *alloc_static(alloc_static_t *heap, size_t size);
 
 void alloc_buddy_init(alloc_buddy_t *heap, void *start, size_t size,
-                      void *free_heads, size_t free_heads_size);
+                      void *free_heads, size_t free_heads_size, void *bitmap,
+                      size_t bitmap_size);
 void *alloc_buddy(alloc_buddy_t *heap, size_t size);
-void alloc_buddy_free(alloc_buddy_t *heap, void *ptr);
+void alloc_buddy_free(alloc_buddy_t *heap, void *ptr, size_t size);
 
 void alloc_slab_init(alloc_slab_t *heap, void *start, size_t size,
                      size_t alloc_size);

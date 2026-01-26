@@ -5,28 +5,9 @@
 #include "alloc_osintf.h"
 
 typedef struct alloc_buddy_tag {
-    bool used;
-
-    union {
-        struct {
-            // used = true
-            uint8_t order;
-        };
-        struct {
-            // used = false
-            struct alloc_buddy_tag *prev;
-            struct alloc_buddy_tag *next;
-        };
-    };
-
-#if SIZE_MAX == UINT32_MAX
-    uint8_t reserved[18];
-#else
-    uint8_t reserved[8];
-#endif
+    struct alloc_buddy_tag *prev;
+    struct alloc_buddy_tag *next;
 } alloc_buddy_tag_t;
-
-static_assert(sizeof(alloc_buddy_tag_t) == YTALLOC_BUDDY_TAG_SIZE);
 
 static size_t prv_alloc_calc_log2(size_t num);
 static size_t prv_alloc_calc_num_orders(size_t heap_size,
@@ -41,8 +22,13 @@ static void prv_alloc_add_free_block(alloc_buddy_t *heap, uintptr_t block,
 static uintptr_t prv_alloc_get_buddy(const alloc_buddy_t *heap, uintptr_t block,
                                      size_t order);
 
+static bool prv_alloc_is_block_used(const alloc_buddy_t *heap, uintptr_t block);
+static void prv_alloc_set_block_used(alloc_buddy_t *heap, uintptr_t block,
+                                     bool used);
+
 void alloc_buddy_init(alloc_buddy_t *heap, void *v_start, size_t size,
-                      void *free_heads, size_t free_heads_size) {
+                      void *free_heads, size_t free_heads_size, void *bitmap,
+                      size_t bitmap_size) {
     ASSERT_ALWAYS(heap != NULL);
     ASSERT_ALWAYS(v_start != NULL);
     ASSERT_ALWAYS(free_heads != NULL);
@@ -69,6 +55,11 @@ void alloc_buddy_init(alloc_buddy_t *heap, void *v_start, size_t size,
                    sizeof(uintptr_t) * num_orders);
     alloc_memset(free_heads, 0, free_heads_size);
 
+    const size_t num_order0_blocks = rounded_size / min_block_size;
+    const size_t need_bitmap_size = ((num_order0_blocks + 7) & ~7) / 8;
+    ASSERTF_ALWAYS(bitmap_size >= need_bitmap_size,
+                   "bitmap_size must be >= %zu", need_bitmap_size);
+
     alloc_memset(heap, 0, sizeof(*heap));
     heap->start = start;
     heap->end = start + size;
@@ -76,6 +67,8 @@ void alloc_buddy_init(alloc_buddy_t *heap, void *v_start, size_t size,
     heap->min_block_size = min_block_size;
     heap->num_orders = num_orders;
     heap->free_heads = free_heads;
+    heap->usage_bitmap = bitmap;
+    heap->bitmap_size = bitmap_size;
 
     alloc_buddy_tag_t *const biggest_block = v_start;
     biggest_block->prev = NULL;
@@ -91,27 +84,25 @@ void *alloc_buddy(alloc_buddy_t *heap, size_t size) {
     if (size > heap->used_size) { return NULL; }
 
     const size_t order = prv_alloc_calc_block_order(heap, size);
-    void *const ptr = prv_alloc_get_free_block(heap, order);
-    if (ptr) {
-        return ptr + YTALLOC_BUDDY_TAG_SIZE;
-    } else {
-        return NULL;
-    }
+    return prv_alloc_get_free_block(heap, order);
 }
 
-void alloc_buddy_free(alloc_buddy_t *heap, void *ptr) {
+void alloc_buddy_free(alloc_buddy_t *heap, void *ptr, size_t size) {
     ASSERT_DEBUG(heap != NULL);
     if (!ptr) { return; }
 
-    const uintptr_t block = (uintptr_t)ptr - YTALLOC_BUDDY_TAG_SIZE;
+    const uintptr_t block = (uintptr_t)ptr;
     ASSERTF_DEBUG(heap->start <= (uintptr_t)block && (uintptr_t)ptr < heap->end,
                   "%s", "ptr is outside the heap");
 
-    alloc_buddy_tag_t *const tag = (alloc_buddy_tag_t *)block;
+    const size_t order = prv_alloc_calc_block_order(heap, size);
+    ASSERT_DEBUG(order < heap->num_orders);
 
-    ASSERT_ALWAYS(tag->used);
-    const uint8_t order = tag->order;
-    tag->used = false;
+    const bool block_is_used = prv_alloc_is_block_used(heap, block);
+    ASSERT_ALWAYS(block_is_used);
+    prv_alloc_set_block_used(heap, block, false);
+
+    alloc_buddy_tag_t *const tag = (alloc_buddy_tag_t *)block;
     tag->prev = NULL;
     tag->next = NULL;
 
@@ -151,8 +142,7 @@ static size_t prv_alloc_calc_num_orders(size_t heap_size,
  */
 static size_t prv_alloc_calc_block_order(const alloc_buddy_t *heap,
                                          size_t alloc_size) {
-    const size_t need_size = YTALLOC_BUDDY_TAG_SIZE + alloc_size;
-    const size_t size_pow2 = prv_alloc_calc_pow2_ge(need_size);
+    const size_t size_pow2 = prv_alloc_calc_pow2_ge(alloc_size);
     if (size_pow2 <= heap->min_block_size) { return 0; }
     const size_t order = prv_alloc_calc_log2(size_pow2 / heap->min_block_size);
     return order;
@@ -205,16 +195,12 @@ static void *prv_alloc_get_free_block(alloc_buddy_t *heap, size_t order) {
         void *const higher_block = prv_alloc_get_free_block(heap, order + 1);
         if (!higher_block) { return NULL; }
 
-        alloc_buddy_tag_t *const tag = (alloc_buddy_tag_t *)higher_block;
-        tag->used = true;
-        tag->order = order;
-
-        alloc_buddy_tag_t *const buddy_tag =
-            (alloc_buddy_tag_t *)prv_alloc_get_buddy(
-                heap, (uintptr_t)higher_block, order);
-        buddy_tag->used = false;
+        const uintptr_t buddy =
+            prv_alloc_get_buddy(heap, (uintptr_t)higher_block, order);
+        alloc_buddy_tag_t *const buddy_tag = (alloc_buddy_tag_t *)buddy;
         buddy_tag->prev = NULL;
         buddy_tag->next = NULL;
+        prv_alloc_set_block_used(heap, buddy, false);
         heap->free_heads[order] = (uintptr_t)buddy_tag;
 
         return higher_block;
@@ -228,8 +214,7 @@ static void *prv_alloc_get_free_block(alloc_buddy_t *heap, size_t order) {
         heap->free_heads[order] = (uintptr_t)tag->next;
         if (tag->next) { tag->next->prev = tag->prev; }
 
-        tag->used = true;
-        tag->order = order;
+        prv_alloc_set_block_used(heap, free_block, true);
 
         return (void *)free_block;
     }
@@ -258,13 +243,10 @@ static void prv_alloc_add_free_block(alloc_buddy_t *heap, uintptr_t block,
         const alloc_buddy_tag_t *const buddy_tag =
             (const alloc_buddy_tag_t *)buddy;
 
-        if (buddy_tag->used) {
+        if (prv_alloc_is_block_used(heap, buddy)) {
             alloc_buddy_tag_t *const head =
                 (alloc_buddy_tag_t *)heap->free_heads[order];
-            if (head) {
-                ASSERT_DEBUG(!head->used);
-                head->prev = tag;
-            }
+            if (head) { head->prev = tag; }
             tag->next = head;
             heap->free_heads[order] = block;
         } else {
@@ -288,4 +270,41 @@ static uintptr_t prv_alloc_get_buddy(const alloc_buddy_t *heap, uintptr_t block,
     const size_t block_size = heap->min_block_size * ((size_t)1U << order);
     ASSERT_DEBUG((block & (block_size - 1)) == 0);
     return block ^ block_size;
+}
+
+static bool prv_alloc_is_block_used(const alloc_buddy_t *heap,
+                                    uintptr_t block) {
+    ASSERT_DEBUG(block >= heap->start);
+    ASSERT_DEBUG(block < heap->end);
+
+    const size_t abs_bit_pos = (block - heap->start) / heap->min_block_size;
+    const size_t byte_pos = abs_bit_pos / 8;
+    const size_t bit_pos = abs_bit_pos % 8;
+
+    ASSERTF_ALWAYS(byte_pos < heap->bitmap_size, "%s",
+                   "byte_pos is beyond bitmap size");
+
+    const uint8_t usage_byte = heap->usage_bitmap[byte_pos];
+    const bool usage_bit = (usage_byte & (1 << bit_pos)) != 0;
+
+    return usage_bit;
+}
+
+static void prv_alloc_set_block_used(alloc_buddy_t *heap, uintptr_t block,
+                                     bool used) {
+    ASSERT_DEBUG(block >= heap->start);
+    ASSERT_DEBUG(block < heap->end);
+
+    const size_t abs_bit_pos = (block - heap->start) / heap->min_block_size;
+    const size_t byte_pos = abs_bit_pos / 8;
+    const size_t bit_pos = abs_bit_pos % 8;
+
+    ASSERTF_ALWAYS(byte_pos < heap->bitmap_size, "%s",
+                   "byte_pos is beyond bitmap size");
+
+    if (used) {
+        heap->usage_bitmap[byte_pos] |= 1 << bit_pos;
+    } else {
+        heap->usage_bitmap[byte_pos] &= ~(1 << bit_pos);
+    }
 }
