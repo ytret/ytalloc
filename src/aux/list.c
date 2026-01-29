@@ -7,7 +7,7 @@
 
 #include "list.h"
 
-void list_init(list_t *p_list, list_node_t *p_init_node) {
+void list_init(ytaux_list_t *p_list, list_node_t *p_init_node) {
     __builtin_memset(p_list, 0, sizeof(*p_list));
 
     p_list->p_first_node = p_init_node;
@@ -19,12 +19,12 @@ void list_init(list_t *p_list, list_node_t *p_init_node) {
     }
 }
 
-void list_clear(list_t *p_list) {
+void list_clear(ytaux_list_t *p_list) {
     p_list->p_first_node = NULL;
     p_list->p_last_node = NULL;
 }
 
-void list_append(list_t *p_list, list_node_t *p_node) {
+void list_append(ytaux_list_t *p_list, list_node_t *p_node) {
     if (p_list->p_last_node == NULL) {
         p_list->p_first_node = p_node;
     } else {
@@ -35,7 +35,7 @@ void list_append(list_t *p_list, list_node_t *p_node) {
     p_list->p_last_node = p_node;
 }
 
-void list_insert(list_t *p_list, list_node_t *p_after_node,
+void list_insert(ytaux_list_t *p_list, list_node_t *p_after_node,
                  list_node_t *p_new_node) {
     if (p_after_node == NULL) {
         p_new_node->p_prev = NULL;
@@ -53,7 +53,7 @@ void list_insert(list_t *p_list, list_node_t *p_after_node,
     }
 }
 
-bool list_remove(list_t *p_list, list_node_t *p_node) {
+bool list_remove(ytaux_list_t *p_list, list_node_t *p_node) {
     list_node_t *p_iter = p_list->p_first_node;
     list_node_t *p_prev = NULL;
     while (p_iter != NULL) {
@@ -76,7 +76,7 @@ bool list_remove(list_t *p_list, list_node_t *p_node) {
     return false;
 }
 
-list_node_t *list_pop_first(list_t *p_list) {
+list_node_t *list_pop_first(ytaux_list_t *p_list) {
     list_node_t *p_node = NULL;
     if (p_list->p_first_node) {
         p_node = p_list->p_first_node;
@@ -92,7 +92,7 @@ list_node_t *list_pop_first(list_t *p_list) {
     return p_node;
 }
 
-list_node_t *list_pop_last(list_t *p_list) {
+list_node_t *list_pop_last(ytaux_list_t *p_list) {
     list_node_t *p_node = NULL;
     if (p_list->p_last_node) {
         p_node = p_list->p_last_node;
@@ -108,11 +108,11 @@ list_node_t *list_pop_last(list_t *p_list) {
     return p_node;
 }
 
-bool list_is_empty(list_t *p_list) {
+bool list_is_empty(ytaux_list_t *p_list) {
     return p_list->p_first_node == NULL;
 }
 
-size_t list_count(list_t *p_list) {
+size_t list_count(ytaux_list_t *p_list) {
     size_t cnt = 0;
     for (list_node_t *p_node = p_list->p_first_node; p_node != NULL;
          p_node = p_node->p_next) {

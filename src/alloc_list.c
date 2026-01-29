@@ -33,13 +33,13 @@ void alloc_list_init(alloc_list_t *heap, void *start, size_t size) {
 
     alloc_memset(heap, 0, sizeof(*heap));
 
-    static_assert(sizeof(heap->prv) == sizeof(list_t));
-    static_assert(offsetof(alloc_list_t, prv) % _Alignof(list_t) == 0);
+    static_assert(sizeof(heap->prv) == sizeof(ytaux_list_t));
+    static_assert(offsetof(alloc_list_t, prv) % _Alignof(ytaux_list_t) == 0);
 
     heap->start = (uintptr_t)start;
     heap->end = heap->start + size;
 
-    heap->tag_list = (list_t *)&heap->prv[0];
+    heap->tag_list = (ytaux_list_t *)&heap->prv[0];
     list_init(heap->tag_list, NULL);
 
     // Create a tag for the free chunk that is the most part of the heap.

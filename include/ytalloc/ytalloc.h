@@ -23,13 +23,13 @@ static_assert(YTALLOC_BUDDY_MIN_ALLOC_SIZE > 0);
 extern "C" {
 #endif
 
-typedef struct list list_t;
+typedef struct list ytaux_list_t;
 
 typedef struct {
     uintptr_t start;
     uintptr_t end;
 
-    list_t *tag_list;
+    ytaux_list_t *tag_list;
 
 #if SIZE_MAX == UINT32_MAX
     [[gnu::aligned(4)]] uint8_t prv[8];

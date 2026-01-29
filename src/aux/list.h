@@ -105,27 +105,27 @@ typedef struct list_node {
 typedef struct list {
     list_node_t *p_first_node;
     list_node_t *p_last_node;
-} list_t;
+} ytaux_list_t;
 
 /**
  * Initializes @a p_list with an optional first node.
  * @param p_list      List pointer.
  * @param p_init_node Optional first node (may be `NULL`).
  */
-void list_init(list_t *p_list, list_node_t *p_init_node);
+void list_init(ytaux_list_t *p_list, list_node_t *p_init_node);
 
 /**
  * Clears @a p_list without deallocating its nodes.
  * @param p_list List pointer.
  */
-void list_clear(list_t *p_list);
+void list_clear(ytaux_list_t *p_list);
 
 /**
  * Appends @a p_node to the end of @a p_list.
  * @param p_list List pointer.
  * @param p_node Node to add.
  */
-void list_append(list_t *p_list, list_node_t *p_node);
+void list_append(ytaux_list_t *p_list, list_node_t *p_node);
 
 /**
  * Inserts @a p_new_node after the node @a p_after_node in the list @a p_list.
@@ -136,7 +136,7 @@ void list_append(list_t *p_list, list_node_t *p_node);
  * It is not checked whether @a p_list contains @a p_after_node or @a
  * p_new_node.
  */
-void list_insert(list_t *p_list, list_node_t *p_after_node,
+void list_insert(ytaux_list_t *p_list, list_node_t *p_after_node,
                  list_node_t *p_new_node);
 
 /**
@@ -145,7 +145,7 @@ void list_insert(list_t *p_list, list_node_t *p_after_node,
  * @param p_node Node to remove.
  * @returns `true` if the node has been found and removed, `false` otherwise.
  */
-bool list_remove(list_t *p_list, list_node_t *p_node);
+bool list_remove(ytaux_list_t *p_list, list_node_t *p_node);
 
 /**
  * Removes the first node from @a p_list and returns it.
@@ -154,7 +154,7 @@ bool list_remove(list_t *p_list, list_node_t *p_node);
  * - First node from the list if it had any.
  * - `NULL` if the list is empty.
  */
-list_node_t *list_pop_first(list_t *p_list);
+list_node_t *list_pop_first(ytaux_list_t *p_list);
 
 /**
  * Removes the last node from @a p_list and returns it.
@@ -163,16 +163,16 @@ list_node_t *list_pop_first(list_t *p_list);
  * - Last node from the list if it had any.
  * - `NULL` if the list is empty.
  */
-list_node_t *list_pop_last(list_t *p_list);
+list_node_t *list_pop_last(ytaux_list_t *p_list);
 
 /**
  * Returns `true` if @a p_list is empty (has no nodes).
  * @param p_list List pointer.
  */
-bool list_is_empty(list_t *p_list);
+bool list_is_empty(ytaux_list_t *p_list);
 
 /**
  * Returns the number of elements in a list.
  * @param p_list List pointer.
  */
-size_t list_count(list_t *p_list);
+size_t list_count(ytaux_list_t *p_list);
