@@ -220,3 +220,26 @@ TEST_F(SlabHeapTest, FreeItemsArePointers) {
         }
     }
 }
+
+TEST_F(SlabHeapTest, UnalignedSize) {
+    constexpr size_t alloc_size = 32;
+    constexpr size_t size = 16 * alloc_size - alloc_size / 2;
+    constexpr size_t expected_num_items = size / alloc_size;
+
+    init_with_size(size, alloc_size);
+
+    ASSERT_EQ(heap.num_items, expected_num_items);
+
+    // Also check the items, just in case.
+    for (size_t idx = 0; idx < heap.num_items; idx++) {
+        const uintptr_t item_addr = heap.start + alloc_size * idx;
+        const uintptr_t next_item_addr = heap.start + alloc_size * (idx + 1);
+        const uintptr_t item_val = *(uintptr_t *)item_addr;
+
+        if (idx == heap.num_items - 1) {
+            ASSERT_EQ(item_val, 0);
+        } else {
+            ASSERT_EQ(item_val, next_item_addr);
+        }
+    }
+}
