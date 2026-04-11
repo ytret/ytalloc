@@ -82,6 +82,7 @@ void alloc_buddy_init(alloc_buddy_t *heap, void *start, size_t size,
                       void *free_heads, size_t free_heads_size, void *bitmap,
                       size_t bitmap_size);
 void *alloc_buddy(alloc_buddy_t *heap, size_t size);
+void *alloc_buddy_aligned(alloc_buddy_t *heap, size_t size, size_t align);
 void alloc_buddy_free(alloc_buddy_t *heap, void *ptr, size_t size);
 
 void alloc_slab_init(alloc_slab_t *heap, void *start, size_t size,

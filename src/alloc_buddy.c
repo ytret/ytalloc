@@ -16,6 +16,9 @@ static size_t prv_alloc_calc_block_order(const alloc_buddy_t *heap,
                                          size_t alloc_size);
 
 static void *prv_alloc_get_free_block(alloc_buddy_t *heap, size_t order);
+static void *prv_alloc_get_free_aligned_block(alloc_buddy_t *heap,
+                                              size_t size_order,
+                                              size_t alignment);
 static void prv_alloc_add_free_block(alloc_buddy_t *heap, uintptr_t block,
                                      uint8_t order);
 static uintptr_t prv_alloc_get_buddy(const alloc_buddy_t *heap, uintptr_t block,
@@ -86,6 +89,17 @@ void *alloc_buddy(alloc_buddy_t *heap, size_t size) {
     return prv_alloc_get_free_block(heap, order);
 }
 
+void *alloc_buddy_aligned(alloc_buddy_t *heap, size_t size, size_t align) {
+    ASSERT_DEBUG(heap != NULL);
+
+    if (size == 0) { return NULL; }
+    if (size > heap->used_size) { return NULL; }
+
+    const size_t size_order = prv_alloc_calc_block_order(heap, size);
+    const size_t align_order = prv_alloc_calc_block_order(heap, align);
+    return prv_alloc_get_free_aligned_block(heap, size_order, align_order);
+}
+
 void alloc_buddy_free(alloc_buddy_t *heap, void *ptr, size_t size) {
     ASSERT_DEBUG(heap != NULL);
     if (!ptr) { return; }
@@ -140,10 +154,13 @@ static size_t prv_alloc_calc_block_order(const alloc_buddy_t *heap,
 }
 
 /**
- * Returns the first free block of the specified order.
+ * Allocates a block of the specified order.
  *
  * - Splits a higher order block if needed.
  * - Marks the allocated block as used and removes it from the free list.
+ *
+ * @param heap  Heap structure pointer.
+ * @param order Order of the block to allocate.
  *
  * @returns Pointer to the allocated block or `NULL` if no block could be found.
  */
@@ -152,9 +169,14 @@ static void *prv_alloc_get_free_block(alloc_buddy_t *heap, size_t order) {
 
     const uintptr_t free_block = heap->free_heads[order];
     if (free_block == 0) {
-        void *const higher_block = prv_alloc_get_free_block(heap, order + 1);
+        // No block that satisfies the size and alignment requirements. Split a
+        // higher order block.
+
+        void *const higher_block =
+            prv_alloc_get_free_aligned_block(heap, order + 1, 1);
         if (!higher_block) { return NULL; }
 
+        // We will use its left child and make the other one (`buddy`) free.
         const uintptr_t buddy =
             prv_alloc_get_buddy(heap, (uintptr_t)higher_block, order);
         alloc_buddy_tag_t *const buddy_tag = (alloc_buddy_tag_t *)buddy;
@@ -165,6 +187,8 @@ static void *prv_alloc_get_free_block(alloc_buddy_t *heap, size_t order) {
 
         return higher_block;
     } else {
+        // We found a block of the required order. Remove it from the free list.
+
         alloc_buddy_tag_t *const tag = (alloc_buddy_tag_t *)free_block;
 
         ASSERTF_DEBUG(
@@ -178,6 +202,58 @@ static void *prv_alloc_get_free_block(alloc_buddy_t *heap, size_t order) {
 
         return (void *)free_block;
     }
+}
+
+/**
+ * Allocates a suitable block of the specified order and alignment.
+ *
+ * Same as #prv_alloc_get_free_block(), except satisfies the alignment
+ * requirement.
+ *
+ * @param heap          Heap structure pointer.
+ * @param size_order    Order of the block to allocate.
+ * @param align_order   Alignment order. The allocated block will be aligned at
+ *                      the size of a block of this order.
+ *
+ * @returns Pointer to the allocated block or `NULL` if no block could be found.
+ */
+static void *prv_alloc_get_free_aligned_block(alloc_buddy_t *heap,
+                                              size_t size_order,
+                                              size_t align_order) {
+    const size_t find_order =
+        size_order >= align_order ? size_order : align_order;
+    if (find_order >= heap->num_orders) { return NULL; }
+
+    void *const block = prv_alloc_get_free_block(heap, find_order);
+    if (!block) { return NULL; }
+
+    if (size_order >= align_order) {
+        // Any block of order `size_order` already satisfies the alignment
+        // requirement.
+        return block;
+    }
+
+    // Otherwise, we found a block that is bigger than required, but has the
+    // proper alignment. Split it until we get the smallest suitable size.
+    size_t order = align_order - 1;
+    while (true) {
+        // We always choose the left child, because it has the same alignment
+        // as its parents. Here `buddy` is the right child.
+        const uintptr_t buddy =
+            prv_alloc_get_buddy(heap, (uintptr_t)block, order);
+
+        prv_alloc_set_block_used(heap, (uintptr_t)block, true);
+
+        // TODO: prv_alloc_add_free_block() checks if the buddy (of `buddy`,
+        // here it is `block`) is used. In this case it is obviously not, so
+        // maybe optimize?
+        prv_alloc_add_free_block(heap, buddy, order);
+
+        if (order == 0) { break; }
+        order--;
+    }
+
+    return block;
 }
 
 /**

@@ -293,3 +293,97 @@ TEST_F(BuddyTest, AllocReturnsAlignedAddress) {
     EXPECT_EQ(reinterpret_cast<uintptr_t>(ptr1) % expected_alignment, 0);
     EXPECT_EQ(reinterpret_cast<uintptr_t>(ptr2) % expected_alignment, 0);
 }
+
+TEST_F(BuddyTest, AlignedAlloc_SizeGtAlign) {
+    init_with_size(4 * YTALLOC_BUDDY_MIN_BLOCK_SIZE,
+                   4 * YTALLOC_BUDDY_MIN_BLOCK_SIZE);
+
+    constexpr size_t alloc_size = 2 * YTALLOC_BUDDY_MIN_BLOCK_SIZE;
+    constexpr size_t alloc_align = YTALLOC_BUDDY_MIN_BLOCK_SIZE;
+
+    void *const ptr = alloc_buddy_aligned(&alloc, alloc_size, alloc_align);
+    ASSERT_NE(ptr, nullptr);
+
+    EXPECT_EQ(reinterpret_cast<uintptr_t>(ptr) % alloc_align, 0);
+}
+
+TEST_F(BuddyTest, AlignedAlloc_SizeGtAlign_NoSuitableBlock) {
+    init_with_size(4 * YTALLOC_BUDDY_MIN_BLOCK_SIZE,
+                   4 * YTALLOC_BUDDY_MIN_BLOCK_SIZE);
+
+    constexpr size_t alloc_size = 8 * YTALLOC_BUDDY_MIN_BLOCK_SIZE;
+    constexpr size_t alloc_align = YTALLOC_BUDDY_MIN_BLOCK_SIZE;
+
+    void *const ptr = alloc_buddy_aligned(&alloc, alloc_size, alloc_align);
+    ASSERT_EQ(ptr, nullptr);
+}
+
+TEST_F(BuddyTest, AlignedAlloc_SizeEqAlign) {
+    init_with_size(4 * YTALLOC_BUDDY_MIN_BLOCK_SIZE,
+                   4 * YTALLOC_BUDDY_MIN_BLOCK_SIZE);
+
+    constexpr size_t alloc_size = YTALLOC_BUDDY_MIN_BLOCK_SIZE;
+    constexpr size_t alloc_align = YTALLOC_BUDDY_MIN_BLOCK_SIZE;
+
+    void *const ptr = alloc_buddy_aligned(&alloc, alloc_size, alloc_align);
+    ASSERT_NE(ptr, nullptr);
+
+    EXPECT_EQ(reinterpret_cast<uintptr_t>(ptr) % alloc_align, 0);
+}
+
+TEST_F(BuddyTest, AlignedAlloc_SizeLtAlign) {
+    // When the alignment is greater than the size, the allocator finds a larger
+    // than required block with a proper alignment, then splits it multiple
+    // times until it gets a block of the required size, which will
+    // automatically have the right alignment. Meanwhile, the buddies are marked
+    // as free.
+
+    init_with_size(4 * YTALLOC_BUDDY_MIN_BLOCK_SIZE,
+                   4 * YTALLOC_BUDDY_MIN_BLOCK_SIZE);
+
+    constexpr size_t alloc_size = YTALLOC_BUDDY_MIN_BLOCK_SIZE;
+    constexpr size_t alloc_align = 2 * YTALLOC_BUDDY_MIN_BLOCK_SIZE;
+
+    void *const ptr1 = alloc_buddy_aligned(&alloc, alloc_size, alloc_align);
+    ASSERT_NE(ptr1, nullptr);
+
+    // Initially there were 4 blocks. One is now used. Three should be free.
+    void *const ptr2 = alloc_buddy(&alloc, YTALLOC_BUDDY_MIN_BLOCK_SIZE);
+    ASSERT_NE(ptr2, nullptr);
+    void *const ptr3 = alloc_buddy(&alloc, YTALLOC_BUDDY_MIN_BLOCK_SIZE);
+    ASSERT_NE(ptr3, nullptr);
+    void *const ptr4 = alloc_buddy(&alloc, YTALLOC_BUDDY_MIN_BLOCK_SIZE);
+    ASSERT_NE(ptr4, nullptr);
+
+    EXPECT_EQ(reinterpret_cast<uintptr_t>(ptr1) % alloc_align, 0);
+
+    EXPECT_NE(ptr2, ptr1);
+
+    EXPECT_NE(ptr3, ptr1);
+    EXPECT_NE(ptr3, ptr2);
+
+    EXPECT_NE(ptr4, ptr1);
+    EXPECT_NE(ptr4, ptr2);
+    EXPECT_NE(ptr4, ptr3);
+}
+
+TEST_F(BuddyTest, AlignedAlloc_SizeLtAlign_Free) {
+    // Same as AlignedAlloc_SizeLtAlign, but this time we free the aligned
+    // block.
+
+    init_with_size(4 * YTALLOC_BUDDY_MIN_BLOCK_SIZE,
+                   4 * YTALLOC_BUDDY_MIN_BLOCK_SIZE);
+
+    constexpr size_t alloc_size = YTALLOC_BUDDY_MIN_BLOCK_SIZE;
+    constexpr size_t alloc_align = 2 * YTALLOC_BUDDY_MIN_BLOCK_SIZE;
+
+    void *const ptr1 = alloc_buddy_aligned(&alloc, alloc_size, alloc_align);
+    ASSERT_NE(ptr1, nullptr);
+
+    alloc_buddy_free(&alloc, ptr1, alloc_size);
+
+    void *const ptr2 = alloc_buddy_aligned(&alloc, size, alignment);
+    ASSERT_NE(ptr2, nullptr);
+
+    EXPECT_EQ(reinterpret_cast<uintptr_t>(ptr1) % alignment, 0);
+}
