@@ -7,6 +7,8 @@ void alloc_slab_init(alloc_slab_t *heap, void *v_start, size_t size,
                      size_t alloc_size) {
     ASSERT_ALWAYS(heap != NULL);
     ASSERT_ALWAYS(v_start != NULL);
+    ASSERTF_ALWAYS((uintptr_t)v_start % alloc_size == 0,
+                   "v_start must be aligned at alloc_size (%zu)", alloc_size);
     ASSERT_ALWAYS(size >= alloc_size);
     ASSERTF_ALWAYS(alloc_size >= sizeof(uintptr_t),
                    "alloc_size (%zu) must be greater than or equal to the size "

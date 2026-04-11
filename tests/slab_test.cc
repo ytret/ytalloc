@@ -17,13 +17,13 @@ class SlabHeapTest : public testing::Test {
         }
     }
 
-    void set_underlying_storage(size_t size) {
-        storage = new uint8_t[size];
+    void set_underlying_storage(size_t size, size_t alignment) {
+        storage = new (std::align_val_t(alignment)) uint8_t[size];
         this->size = size;
     }
 
     void init_with_size(size_t size, size_t alloc_size) {
-        set_underlying_storage(size);
+        set_underlying_storage(size, alloc_size);
         alloc_slab_init(&heap, storage, size, alloc_size);
     }
 
@@ -54,23 +54,30 @@ class SlabHeapTest : public testing::Test {
 };
 
 TEST_F(SlabHeapTest, InitWithNullHeapAborts) {
-    set_underlying_storage(32);
+    set_underlying_storage(32, 8);
     ASSERT_DEATH(alloc_slab_init(NULL, storage, size, 8), "");
 }
 
 TEST_F(SlabHeapTest, InitWithNullStartAborts) {
-    set_underlying_storage(32);
+    set_underlying_storage(32, 8);
     ASSERT_DEATH(alloc_slab_init(&heap, NULL, size, 8), "");
 }
 
 TEST_F(SlabHeapTest, InitWithZeroSizeAborts) {
-    set_underlying_storage(32);
+    set_underlying_storage(32, 8);
     ASSERT_DEATH(alloc_slab_init(&heap, storage, 0, 8), "");
 }
 
 TEST_F(SlabHeapTest, InitWithSmallAllocSizeAborts) {
-    set_underlying_storage(32);
+    set_underlying_storage(32, 8);
     ASSERT_DEATH(alloc_slab_init(&heap, storage, 8, 2), "");
+}
+
+TEST_F(SlabHeapTest, InitWithUnalignedStartAborts) {
+    set_underlying_storage(32, 8);
+    constexpr size_t offset = 1;
+    ASSERT_DEATH(alloc_slab_init(&heap, storage + offset, size - offset, 8),
+                 "");
 }
 
 TEST_F(SlabHeapTest, AllocNotFull) {
