@@ -79,6 +79,9 @@ TEST_F(SlabHeapTest, AllocNotFull) {
     void *const ptr = alloc_slab(&heap);
     ASSERT_NE(ptr, nullptr);
 
+    EXPECT_EQ(alloc_slab_num_used(&heap), 1);
+    EXPECT_EQ(alloc_slab_num_free(&heap), 3);
+
     random_write(ptr, 8);
     check_writes();
 }
@@ -89,6 +92,9 @@ TEST_F(SlabHeapTest, AllocWhole) {
     void *const ptr = alloc_slab(&heap);
     ASSERT_NE(ptr, nullptr);
 
+    EXPECT_EQ(alloc_slab_num_used(&heap), 1);
+    EXPECT_EQ(alloc_slab_num_free(&heap), 0);
+
     random_write(ptr, 8);
     check_writes();
 }
@@ -98,15 +104,28 @@ TEST_F(SlabHeapTest, AllocUntilFull) {
 
     void *const ptr1 = alloc_slab(&heap);
     ASSERT_NE(ptr1, nullptr);
+    EXPECT_EQ(alloc_slab_num_used(&heap), 1);
+    EXPECT_EQ(alloc_slab_num_free(&heap), 3);
+
     void *const ptr2 = alloc_slab(&heap);
     ASSERT_NE(ptr2, nullptr);
+    EXPECT_EQ(alloc_slab_num_used(&heap), 2);
+    EXPECT_EQ(alloc_slab_num_free(&heap), 2);
+
     void *const ptr3 = alloc_slab(&heap);
     ASSERT_NE(ptr3, nullptr);
+    EXPECT_EQ(alloc_slab_num_used(&heap), 3);
+    EXPECT_EQ(alloc_slab_num_free(&heap), 1);
+
     void *const ptr4 = alloc_slab(&heap);
     ASSERT_NE(ptr4, nullptr);
+    EXPECT_EQ(alloc_slab_num_used(&heap), 4);
+    EXPECT_EQ(alloc_slab_num_free(&heap), 0);
 
     void *const ptr5 = alloc_slab(&heap);
     ASSERT_EQ(ptr5, nullptr);
+    EXPECT_EQ(alloc_slab_num_used(&heap), 4);
+    EXPECT_EQ(alloc_slab_num_free(&heap), 0);
 
     random_write(ptr1, 8);
     random_write(ptr2, 8);
@@ -120,6 +139,8 @@ TEST_F(SlabHeapTest, AllocFree) {
 
     void *const ptr = alloc_slab(&heap);
     ASSERT_NE(ptr, nullptr);
+    EXPECT_EQ(alloc_slab_num_used(&heap), 1);
+    EXPECT_EQ(alloc_slab_num_free(&heap), 1);
 
     alloc_slab_free(&heap, ptr);
 }
@@ -131,6 +152,8 @@ TEST_F(SlabHeapTest, AllocFreeAlloc) {
     ASSERT_NE(ptr1, nullptr);
 
     alloc_slab_free(&heap, ptr1);
+    EXPECT_EQ(alloc_slab_num_used(&heap), 0);
+    EXPECT_EQ(alloc_slab_num_free(&heap), 2);
 
     void *const ptr2 = alloc_slab(&heap);
     ASSERT_NE(ptr2, nullptr);
@@ -159,6 +182,9 @@ TEST_F(SlabHeapTest, InterleavingAllocFrees) {
     void *const ptr3_2 = alloc_slab(&heap);
     ASSERT_NE(ptr3_2, nullptr);
     ASSERT_EQ(ptr3_2, ptr3_1);
+
+    EXPECT_EQ(alloc_slab_num_used(&heap), 4);
+    EXPECT_EQ(alloc_slab_num_free(&heap), 0);
 
     random_write(ptr1_2, 8);
     random_write(ptr2, 8);

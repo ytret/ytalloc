@@ -22,6 +22,7 @@ void alloc_slab_init(alloc_slab_t *heap, void *v_start, size_t size,
     heap->end = heap->start + size;
     heap->used_size = used_size;
     heap->alloc_size = alloc_size;
+    heap->num_items = used_size / alloc_size;
 
     for (size_t idx = 0; idx < size / alloc_size; idx++) {
         uintptr_t *const ptr_to_next = v_start + sizeof(uintptr_t) * idx;
@@ -43,6 +44,7 @@ void *alloc_slab(alloc_slab_t *heap) {
         void *ptr = heap->free_head;
         const uintptr_t next = *heap->free_head;
         heap->free_head = (uintptr_t *)next;
+        heap->num_used++;
         return ptr;
     }
 }
@@ -54,4 +56,17 @@ void alloc_slab_free(alloc_slab_t *heap, void *ptr) {
     uintptr_t *const ptr_to_next = ptr;
     *ptr_to_next = (uintptr_t)heap->free_head;
     heap->free_head = ptr_to_next;
+
+    ASSERT_ALWAYS(heap->num_used > 0);
+    heap->num_used--;
+}
+
+size_t alloc_slab_num_free(const alloc_slab_t *heap) {
+    ASSERT_DEBUG(heap != NULL);
+    return heap->num_items - heap->num_used;
+}
+
+size_t alloc_slab_num_used(const alloc_slab_t *heap) {
+    ASSERT_DEBUG(heap != NULL);
+    return heap->num_used;
 }

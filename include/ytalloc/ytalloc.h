@@ -69,6 +69,9 @@ typedef struct {
 
     size_t alloc_size;
     uintptr_t *free_head;
+
+    size_t num_used;
+    size_t num_items;
 } alloc_slab_t;
 
 void alloc_list_init(alloc_list_t *heap, void *start, size_t size);
@@ -89,6 +92,8 @@ void alloc_slab_init(alloc_slab_t *heap, void *start, size_t size,
                      size_t alloc_size);
 void *alloc_slab(alloc_slab_t *heap);
 void alloc_slab_free(alloc_slab_t *heap, void *ptr);
+size_t alloc_slab_num_free(const alloc_slab_t *heap);
+size_t alloc_slab_num_used(const alloc_slab_t *heap);
 
 #if __cplusplus
 }
