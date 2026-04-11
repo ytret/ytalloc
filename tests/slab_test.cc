@@ -192,3 +192,24 @@ TEST_F(SlabHeapTest, InterleavingAllocFrees) {
     random_write(ptr4, 8);
     check_writes();
 }
+
+TEST_F(SlabHeapTest, FreeItemsArePointers) {
+    constexpr size_t num_items = 8;
+    constexpr size_t alloc_size = 32;
+    init_with_size(num_items * alloc_size, alloc_size);
+
+    // There was a bug where alloc_size was replaced with sizeof(uintptr_t).
+    static_assert(alloc_size != sizeof(uintptr_t));
+
+    for (size_t idx = 0; idx < num_items; idx++) {
+        const uintptr_t item_addr = heap.start + alloc_size * idx;
+        const uintptr_t next_item_addr = heap.start + alloc_size * (idx + 1);
+        const uintptr_t item_val = *(uintptr_t *)item_addr;
+
+        if (idx == num_items - 1) {
+            ASSERT_EQ(item_val, 0);
+        } else {
+            ASSERT_EQ(item_val, next_item_addr);
+        }
+    }
+}

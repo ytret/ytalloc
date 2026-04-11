@@ -25,7 +25,7 @@ void alloc_slab_init(alloc_slab_t *heap, void *v_start, size_t size,
     heap->num_items = used_size / alloc_size;
 
     for (size_t idx = 0; idx < size / alloc_size; idx++) {
-        uintptr_t *const ptr_to_next = v_start + sizeof(uintptr_t) * idx;
+        uintptr_t *const ptr_to_next = v_start + alloc_size * idx;
         if (idx + 1 == size / alloc_size) {
             *ptr_to_next = 0;
         } else {
