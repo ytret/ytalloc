@@ -387,3 +387,20 @@ TEST_F(BuddyTest, AlignedAlloc_SizeLtAlign_Free) {
 
     EXPECT_EQ(reinterpret_cast<uintptr_t>(ptr1) % alignment, 0);
 }
+
+TEST_F(BuddyTest, AlignedAlloc_SmallSize_LargeAlign) {
+    init_with_size(1024 * YTALLOC_BUDDY_MIN_BLOCK_SIZE,
+                   1024 * YTALLOC_BUDDY_MIN_BLOCK_SIZE);
+
+    constexpr size_t alloc_size = YTALLOC_BUDDY_MIN_BLOCK_SIZE;
+    constexpr size_t alloc_align = 512 * YTALLOC_BUDDY_MIN_BLOCK_SIZE;
+
+    void *const ptr1 = alloc_buddy_aligned(&alloc, alloc_size, alloc_size);
+    ASSERT_NE(ptr1, nullptr);
+
+    void *const ptr2 = alloc_buddy_aligned(&alloc, alloc_size, alloc_align);
+    ASSERT_NE(ptr2, nullptr);
+    ASSERT_NE(ptr2, ptr1);
+
+    EXPECT_EQ(reinterpret_cast<uintptr_t>(ptr2) % alloc_align, 0);
+}

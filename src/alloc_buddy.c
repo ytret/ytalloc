@@ -61,6 +61,7 @@ void alloc_buddy_init(alloc_buddy_t *heap, void *v_start, size_t size,
     const size_t need_bitmap_size = ((num_order0_blocks + 7) & ~7) / 8;
     ASSERTF_ALWAYS(bitmap_size >= need_bitmap_size,
                    "bitmap_size must be >= %zu", need_bitmap_size);
+    alloc_memset(bitmap, 0, bitmap_size);
 
     alloc_memset(heap, 0, sizeof(*heap));
     heap->start = start;
@@ -273,6 +274,10 @@ static void prv_alloc_add_free_block(alloc_buddy_t *heap, uintptr_t block,
 
     ASSERT_DEBUG(heap->num_orders > 0);
     const bool has_buddy = order < (heap->num_orders - 1);
+
+    // Zero initialize the pointers. The actual values are set below.
+    tag->prev = NULL;
+    tag->next = NULL;
 
     if (has_buddy) {
         const uintptr_t buddy = prv_alloc_get_buddy(heap, block, order);
