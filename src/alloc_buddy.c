@@ -142,15 +142,15 @@ static size_t prv_alloc_calc_block_order(const alloc_buddy_t *heap,
 /**
  * Returns the first free block of the specified order.
  *
- * - Splits the higher order block if needed.
- * - Marks the block as used and removes it from the free list.
+ * - Splits a higher order block if needed.
+ * - Marks the allocated block as used and removes it from the free list.
  *
  * @returns Pointer to the allocated block or `NULL` if no block could be found.
  */
 static void *prv_alloc_get_free_block(alloc_buddy_t *heap, size_t order) {
     if (order >= heap->num_orders) { return NULL; }
 
-    uintptr_t free_block = heap->free_heads[order];
+    const uintptr_t free_block = heap->free_heads[order];
     if (free_block == 0) {
         void *const higher_block = prv_alloc_get_free_block(heap, order + 1);
         if (!higher_block) { return NULL; }
