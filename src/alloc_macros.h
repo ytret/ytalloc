@@ -34,5 +34,6 @@
             PRINTF_ALWAYS("    Function: %s", __FUNCTION__);                   \
             PRINTF_ALWAYS("        Line: %u", __LINE__);                       \
             YTALLOC_ABORT();                                                   \
+            __builtin_trap();                                                  \
         }                                                                      \
     } while (0)
