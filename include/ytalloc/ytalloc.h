@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdarg.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -73,6 +74,12 @@ typedef struct {
     size_t num_used;
     size_t num_items;
 } alloc_slab_t;
+
+typedef int (*alloc_log_fn)(const char *fmt, va_list ap);
+typedef void (*alloc_abort_fn)(void);
+
+void alloc_set_log_fn(alloc_log_fn fn);
+void alloc_set_abort_fn(alloc_abort_fn fn);
 
 void alloc_list_init(alloc_list_t *heap, void *start, size_t size);
 void *alloc_list(alloc_list_t *heap, size_t size);

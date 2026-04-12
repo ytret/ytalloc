@@ -1,7 +1,7 @@
+#include <string.h>
 #include <ytalloc/ytalloc.h>
 
 #include "alloc_macros.h"
-#include "alloc_osintf.h"
 #include "aux/list.h"
 
 #define ALLOC_LIST_MIN_SIZE 64
@@ -31,7 +31,7 @@ void alloc_list_init(alloc_list_t *heap, void *start, size_t size) {
     ASSERTF_ALWAYS((uintptr_t)start % alignof(alloc_tag_t) == 0,
                    "start %p has bad alignment for type alloc_tag_t", start);
 
-    alloc_memset(heap, 0, sizeof(*heap));
+    memset(heap, 0, sizeof(*heap));
 
     static_assert(sizeof(heap->prv) == sizeof(ytaux_list_t));
     static_assert(offsetof(alloc_list_t, prv) % _Alignof(ytaux_list_t) == 0);
@@ -44,16 +44,16 @@ void alloc_list_init(alloc_list_t *heap, void *start, size_t size) {
 
     // Create a tag for the free chunk that is the most part of the heap.
     alloc_tag_t *const tag = (alloc_tag_t *)heap->start;
-    alloc_memset(tag, 0, sizeof(*tag));
+    memset(tag, 0, sizeof(*tag));
     tag->used = false;
     tag->start = heap->start + sizeof(alloc_tag_t);
     tag->size = heap->end - tag->start;
     list_append(heap->tag_list, &tag->node);
 
     if (tag->size < ALLOC_LIST_MIN_SIZE) {
-        PRINTF_DEBUG("alloc_list_init: free chunk size (%zu) is less than the "
-                     "minimum allocation size (%u)",
-                     tag->size, ALLOC_LIST_MIN_SIZE);
+        LOGF_DEBUG("alloc_list_init: free chunk size (%zu) is less than the "
+                   "minimum allocation size (%u)",
+                   tag->size, ALLOC_LIST_MIN_SIZE);
     }
 }
 
@@ -77,16 +77,16 @@ void *alloc_list(alloc_list_t *heap, size_t size) {
         break;
     }
     if (!found_tag) {
-        PRINTF_DEBUG("alloc_list: could not find a free tag for an allocation "
-                     "of size %zu",
-                     size);
+        LOGF_DEBUG("alloc_list: could not find a free tag for an allocation "
+                   "of size %zu",
+                   size);
         return NULL;
     }
 
     const size_t extra_size = found_tag->size - size;
     if (extra_size > sizeof(alloc_tag_t) + ALLOC_LIST_MIN_SIZE) {
         alloc_tag_t *const new_tag = (alloc_tag_t *)(found_tag->start + size);
-        alloc_memset(new_tag, 0, sizeof(*new_tag));
+        memset(new_tag, 0, sizeof(*new_tag));
         new_tag->used = false;
         new_tag->start = (uintptr_t)new_tag + sizeof(alloc_tag_t);
         new_tag->size = found_tag->size - size - sizeof(alloc_tag_t);
@@ -160,7 +160,7 @@ static bool prv_alloc_list_check_node(alloc_list_t *heap, list_node_t *node) {
     if (prv_alloc_list_check_addr(heap, (uintptr_t)node)) {
         return true;
     } else {
-        PRINTF_ALWAYS("alloc_list: bad node pointer %p", node);
+        LOGF_ALWAYS("alloc_list: bad node pointer %p", node);
         return false;
     }
 }
@@ -170,14 +170,14 @@ static bool prv_alloc_list_check_tag(alloc_list_t *heap, alloc_tag_t *tag) {
     ASSERT_DEBUG(tag != NULL);
 
     if (!prv_alloc_list_check_addr(heap, tag->start)) {
-        PRINTF_ALWAYS(
+        LOGF_ALWAYS(
             "alloc_list: bad tag at %p: start address %p is out of bounds", tag,
             (void *)tag->start);
         return false;
     }
 
     if (!prv_alloc_list_check_addr(heap, tag->start + tag->size - 1)) {
-        PRINTF_ALWAYS(
+        LOGF_ALWAYS(
             "alloc_list: bad tag at %p: end address %p is out of bounds", tag,
             (void *)(tag->start + tag->size));
         return false;

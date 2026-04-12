@@ -1,8 +1,8 @@
 #include <limits.h>
+#include <string.h>
 #include <ytalloc/ytalloc.h>
 
 #include "alloc_macros.h"
-#include "alloc_osintf.h"
 #include "aux/auxmath.h"
 
 typedef struct alloc_buddy_tag {
@@ -55,15 +55,15 @@ void alloc_buddy_init(alloc_buddy_t *heap, void *v_start, size_t size,
     ASSERTF_ALWAYS(free_heads_size >= sizeof(uintptr_t) * num_orders,
                    "free_heads_size must be >= %zu",
                    sizeof(uintptr_t) * num_orders);
-    alloc_memset(free_heads, 0, free_heads_size);
+    memset(free_heads, 0, free_heads_size);
 
     const size_t num_order0_blocks = rounded_size / min_block_size;
     const size_t need_bitmap_size = ((num_order0_blocks + 7) & ~7) / 8;
     ASSERTF_ALWAYS(bitmap_size >= need_bitmap_size,
                    "bitmap_size must be >= %zu", need_bitmap_size);
-    alloc_memset(bitmap, 0, bitmap_size);
+    memset(bitmap, 0, bitmap_size);
 
-    alloc_memset(heap, 0, sizeof(*heap));
+    memset(heap, 0, sizeof(*heap));
     heap->start = start;
     heap->end = start + size;
     heap->used_size = rounded_size;

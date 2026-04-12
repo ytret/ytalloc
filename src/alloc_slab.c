@@ -1,7 +1,7 @@
+#include <string.h>
 #include <ytalloc/ytalloc.h>
 
 #include "alloc_macros.h"
-#include "alloc_osintf.h"
 
 void alloc_slab_init(alloc_slab_t *heap, void *v_start, size_t size,
                      size_t alloc_size) {
@@ -15,7 +15,7 @@ void alloc_slab_init(alloc_slab_t *heap, void *v_start, size_t size,
                    "of uintptr_t (%zu)",
                    alloc_size, sizeof(uintptr_t));
 
-    alloc_memset(heap, 0, sizeof(alloc_slab_t));
+    memset(heap, 0, sizeof(alloc_slab_t));
 
     const size_t used_size =
         (size % alloc_size == 0) ? size : (size - size % alloc_size);

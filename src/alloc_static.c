@@ -1,5 +1,6 @@
+#include <string.h>
+
 #include "alloc_macros.h"
-#include "alloc_osintf.h"
 #include "ytalloc/ytalloc.h"
 
 static_assert((YTALLOC_STATIC_ALIGN == 1) || (YTALLOC_STATIC_ALIGN == 2) ||
@@ -12,7 +13,7 @@ void alloc_static_init(alloc_static_t *heap, void *start, size_t size) {
     ASSERTF_ALWAYS((uintptr_t)start % YTALLOC_STATIC_ALIGN == 0,
                    "start must be %d-byte aligned", YTALLOC_STATIC_ALIGN);
 
-    alloc_memset(heap, 0, sizeof(*heap));
+    memset(heap, 0, sizeof(*heap));
 
     heap->start = (uintptr_t)start;
     heap->end = heap->start + size;
