@@ -30,7 +30,7 @@
             LOG_ALWAYS("Assertion failed:");                                   \
             if (HAS_MSG) { LOGF_ALWAYS(FMT, __VA_ARGS__); }                    \
             LOGF_ALWAYS("  Expression: %s", "" #X);                            \
-            LOGF_ALWAYS("        File: %s", __FILE__);                         \
+            LOGF_ALWAYS("        File: %s", __FILE_NAME__);                    \
             LOGF_ALWAYS("    Function: %s", __FUNCTION__);                     \
             LOGF_ALWAYS("        Line: %u", __LINE__);                         \
             alloc_abort();                                                     \
