@@ -16,6 +16,10 @@ set(CMAKE_C_FLAGS_RELWITHDEBINFO "-O3 -g")
 set(YTALLOC_BUILD_TESTS ON CACHE BOOL "Build the ytalloc tests.")
 set(YTALLOC_LIST_DO_CHECKS ON CACHE BOOL
     "Perform heap integrity checks in alloc_list() and alloc_list_free().")
+configure_file(
+    ${CMAKE_CURRENT_LIST_DIR}/src/config.h.in
+    ${CMAKE_CURRENT_BINARY_DIR}/config.h
+)
 
 add_library(ytalloc STATIC
 
@@ -33,17 +37,16 @@ target_compile_options(ytalloc PRIVATE
     -fanalyzer
     -fdiagnostics-color=always
 )
-target_include_directories(ytalloc PRIVATE src)
+target_include_directories(ytalloc PRIVATE
+    src
+    ${CMAKE_CURRENT_BINARY_DIR}
+)
 target_include_directories(ytalloc PUBLIC include)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     target_compile_definitions(ytalloc PRIVATE -DYTALLOC_DEBUG)
 else()
     target_compile_definitions(ytalloc PRIVATE -DYTALLOC_RELEASE)
-endif()
-
-if(YTALLOC_LIST_DO_CHECKS)
-    target_compile_definitions(ytalloc PRIVATE -DALLOC_LIST_DO_CHECKS)
 endif()
 
 if(YTALLOC_BUILD_TESTS)

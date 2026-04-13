@@ -3,6 +3,7 @@
 
 #include "alloc_macros.h"
 #include "aux/list.h"
+#include "config.h"
 
 #define ALLOC_LIST_MIN_SIZE 64
 
@@ -63,7 +64,7 @@ void *alloc_list(alloc_list_t *heap, size_t size) {
 
     if (size < ALLOC_LIST_MIN_SIZE) { size = ALLOC_LIST_MIN_SIZE; }
 
-#if ALLOC_LIST_DO_CHECKS
+#ifdef YTALLOC_LIST_DO_CHECKS
     prv_alloc_list_check(heap);
 #endif
 

@@ -1,0 +1,3 @@
+#pragma once
+
+#cmakedefine YTALLOC_LIST_DO_CHECKS
