@@ -94,6 +94,9 @@ void alloc_buddy_init(alloc_buddy_t *heap, void *start, size_t size,
 void *alloc_buddy(alloc_buddy_t *heap, size_t size);
 void *alloc_buddy_aligned(alloc_buddy_t *heap, size_t size, size_t align);
 void alloc_buddy_free(alloc_buddy_t *heap, void *ptr, size_t size);
+size_t alloc_buddy_order0_size(const alloc_buddy_t *heap);
+size_t alloc_buddy_heap_size(const alloc_buddy_t *heap);
+size_t alloc_buddy_count_free(const alloc_buddy_t *heap, uint8_t order);
 
 void alloc_slab_init(alloc_slab_t *heap, void *start, size_t size,
                      size_t alloc_size);

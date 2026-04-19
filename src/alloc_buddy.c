@@ -123,6 +123,28 @@ void alloc_buddy_free(alloc_buddy_t *heap, void *ptr, size_t size) {
     prv_alloc_add_free_block(heap, block, order);
 }
 
+size_t alloc_buddy_order0_size(const alloc_buddy_t *heap) {
+    return heap->min_block_size;
+}
+
+size_t alloc_buddy_heap_size(const alloc_buddy_t *heap) {
+    return heap->used_size;
+}
+
+size_t alloc_buddy_count_free(const alloc_buddy_t *heap, uint8_t order) {
+    if (order >= heap->num_orders) { return 0; }
+
+    size_t cnt = 0;
+
+    for (const alloc_buddy_tag_t *tag =
+             (const alloc_buddy_tag_t *)heap->free_heads[order];
+         tag != NULL; tag = tag->next) {
+        cnt++;
+    }
+
+    return cnt;
+}
+
 static size_t prv_alloc_calc_num_orders(size_t heap_size,
                                         size_t *out_min_block_size) {
     ASSERT_DEBUG((heap_size & (heap_size - 1)) == 0);

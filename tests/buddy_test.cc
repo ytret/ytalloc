@@ -404,3 +404,64 @@ TEST_F(BuddyTest, AlignedAlloc_SmallSize_LargeAlign) {
 
     EXPECT_EQ(reinterpret_cast<uintptr_t>(ptr2) % alloc_align, 0);
 }
+
+TEST_F(BuddyTest, CountFree_OneOrder) {
+    init_with_size(YTALLOC_BUDDY_MIN_BLOCK_SIZE, YTALLOC_BUDDY_MIN_BLOCK_SIZE);
+
+    size_t order0_cnt = alloc_buddy_count_free(&alloc, 0);
+    ASSERT_EQ(order0_cnt, 1);
+
+    void *const ptr = alloc_buddy(&alloc, YTALLOC_BUDDY_MIN_BLOCK_SIZE);
+    ASSERT_NE(ptr, nullptr);
+
+    order0_cnt = alloc_buddy_count_free(&alloc, 0);
+    EXPECT_EQ(order0_cnt, 0);
+}
+
+TEST_F(BuddyTest, CountFree_TwoOrders) {
+    init_with_size(2 * YTALLOC_BUDDY_MIN_BLOCK_SIZE, 2 * YTALLOC_BUDDY_MIN_BLOCK_SIZE);
+
+    size_t order0_cnt = alloc_buddy_count_free(&alloc, 0);
+    size_t order1_cnt = alloc_buddy_count_free(&alloc, 1);
+    ASSERT_EQ(order0_cnt, 0);
+    ASSERT_EQ(order1_cnt, 1);
+
+    void *const ptr = alloc_buddy(&alloc, YTALLOC_BUDDY_MIN_BLOCK_SIZE);
+    ASSERT_NE(ptr, nullptr);
+
+    order0_cnt = alloc_buddy_count_free(&alloc, 0);
+    order1_cnt = alloc_buddy_count_free(&alloc, 1);
+    ASSERT_EQ(order0_cnt, 1);
+    ASSERT_EQ(order1_cnt, 0);
+}
+
+TEST_F(BuddyTest, CountFree_ThreeOrders) {
+    init_with_size(4 * YTALLOC_BUDDY_MIN_BLOCK_SIZE, 4 * YTALLOC_BUDDY_MIN_BLOCK_SIZE);
+
+    size_t order0_cnt = alloc_buddy_count_free(&alloc, 0);
+    size_t order1_cnt = alloc_buddy_count_free(&alloc, 1);
+    size_t order2_cnt = alloc_buddy_count_free(&alloc, 2);
+    ASSERT_EQ(order0_cnt, 0);
+    ASSERT_EQ(order1_cnt, 0);
+    ASSERT_EQ(order2_cnt, 1);
+
+    void *ptr = alloc_buddy(&alloc, YTALLOC_BUDDY_MIN_BLOCK_SIZE);
+    ASSERT_NE(ptr, nullptr);
+
+    order0_cnt = alloc_buddy_count_free(&alloc, 0);
+    order1_cnt = alloc_buddy_count_free(&alloc, 1);
+    order2_cnt = alloc_buddy_count_free(&alloc, 2);
+    ASSERT_EQ(order0_cnt, 1);
+    ASSERT_EQ(order1_cnt, 1);
+    ASSERT_EQ(order2_cnt, 0);
+
+    ptr = alloc_buddy(&alloc, 2 * YTALLOC_BUDDY_MIN_BLOCK_SIZE);
+    ASSERT_NE(ptr, nullptr);
+
+    order0_cnt = alloc_buddy_count_free(&alloc, 0);
+    order1_cnt = alloc_buddy_count_free(&alloc, 1);
+    order2_cnt = alloc_buddy_count_free(&alloc, 2);
+    ASSERT_EQ(order0_cnt, 1);
+    ASSERT_EQ(order1_cnt, 0);
+    ASSERT_EQ(order2_cnt, 0);
+}
