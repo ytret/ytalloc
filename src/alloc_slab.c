@@ -72,3 +72,8 @@ size_t alloc_slab_num_used(const alloc_slab_t *heap) {
     ASSERT_DEBUG(heap != NULL);
     return heap->num_used;
 }
+
+size_t alloc_slab_num_items(const alloc_slab_t *heap) {
+    ASSERT_DEBUG(heap != NULL);
+    return heap->num_items;
+}

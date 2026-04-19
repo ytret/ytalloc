@@ -101,6 +101,7 @@ void *alloc_slab(alloc_slab_t *heap);
 void alloc_slab_free(alloc_slab_t *heap, void *ptr);
 size_t alloc_slab_num_free(const alloc_slab_t *heap);
 size_t alloc_slab_num_used(const alloc_slab_t *heap);
+size_t alloc_slab_num_items(const alloc_slab_t *heap);
 
 #if __cplusplus
 }
