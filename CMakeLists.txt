@@ -34,7 +34,6 @@ add_library(ytalloc STATIC
 )
 target_compile_options(ytalloc PRIVATE
     -Wall -Wextra -Wmissing-prototypes
-    -fanalyzer
     -fdiagnostics-color=always
 )
 target_include_directories(ytalloc PRIVATE

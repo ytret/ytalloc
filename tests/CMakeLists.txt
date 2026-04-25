@@ -12,7 +12,6 @@ add_library(tests_common STATIC
 )
 target_compile_options(tests_common PRIVATE
     -Wall -Wextra
-    -fanalyzer
     -fdiagnostics-color=always
 )
 target_include_directories(tests_common PUBLIC .)
