@@ -17,7 +17,7 @@ static size_t prv_alloc_calc_block_order(const alloc_buddy_t *heap,
 static void *prv_alloc_get_free_block(alloc_buddy_t *heap, size_t order);
 static void *prv_alloc_get_free_aligned_block(alloc_buddy_t *heap,
                                               size_t size_order,
-                                              size_t alignment);
+                                              size_t align_order);
 static void prv_alloc_add_free_block(alloc_buddy_t *heap, uintptr_t block,
                                      uint8_t order);
 static uintptr_t prv_alloc_get_buddy(const alloc_buddy_t *heap, uintptr_t block,
@@ -65,7 +65,7 @@ void alloc_buddy_init(alloc_buddy_t *heap, void *v_start, size_t size,
     memset(heap, 0, sizeof(*heap));
     heap->start = start;
     heap->end = start + size;
-    heap->used_size = rounded_size;
+    heap->managed_size = rounded_size;
     heap->min_block_size = min_block_size;
     heap->num_orders = num_orders;
     heap->free_heads = free_heads;
@@ -83,7 +83,7 @@ void *alloc_buddy(alloc_buddy_t *heap, size_t size) {
     ASSERT_DEBUG(heap != NULL);
 
     if (size == 0) { return NULL; }
-    if (size > heap->used_size) { return NULL; }
+    if (size > heap->managed_size) { return NULL; }
 
     const size_t order = prv_alloc_calc_block_order(heap, size);
     return prv_alloc_get_free_block(heap, order);
@@ -93,7 +93,7 @@ void *alloc_buddy_aligned(alloc_buddy_t *heap, size_t size, size_t align) {
     ASSERT_DEBUG(heap != NULL);
 
     if (size == 0) { return NULL; }
-    if (size > heap->used_size) { return NULL; }
+    if (size > heap->managed_size) { return NULL; }
 
     const size_t size_order = prv_alloc_calc_block_order(heap, size);
     const size_t align_order = prv_alloc_calc_block_order(heap, align);
@@ -127,7 +127,7 @@ size_t alloc_buddy_order0_size(const alloc_buddy_t *heap) {
 }
 
 size_t alloc_buddy_heap_size(const alloc_buddy_t *heap) {
-    return heap->used_size;
+    return heap->managed_size;
 }
 
 size_t alloc_buddy_count_free(const alloc_buddy_t *heap, uint8_t order) {
@@ -234,8 +234,8 @@ static void *prv_alloc_get_free_block(alloc_buddy_t *heap, size_t order) {
  *
  * @param heap          Heap structure pointer.
  * @param size_order    Order of the block to allocate.
- * @param align_order   Alignment order. The allocated block will be aligned at
- *                      the size of a block of this order.
+ * @param align_order   Alignment order. The allocated block will be aligned to
+ *                      the block size of this order.
  *
  * @returns Pointer to the allocated block or `NULL` if no block could be found.
  */
@@ -267,8 +267,8 @@ static void *prv_alloc_get_free_aligned_block(alloc_buddy_t *heap,
         prv_alloc_set_block_used(heap, (uintptr_t)block, true);
 
         // TODO: prv_alloc_add_free_block() checks if the buddy (of `buddy`,
-        // here it is `block`) is used. In this case it is obviously not, so
-        // maybe optimize?
+        // here it is `block`) is used. In this case it obviously is, so maybe
+        // optimize?
         prv_alloc_add_free_block(heap, buddy, order);
 
         if (order == 0) { break; }
@@ -281,13 +281,15 @@ static void *prv_alloc_get_free_aligned_block(alloc_buddy_t *heap,
 /**
  * Adds the specified block to the free block list.
  *
- * - Marks the block as free.
  * - Adds it to the free list.
  * - Merges the block with its buddy if the buddy is free too.
  *
  * @param heap  Buddy heap struct pointer.
  * @param block Address of the block.
  * @param order Order of the block.
+ *
+ * @warning
+ * This function does not mark the block as free in the block usage bitmap.
  */
 static void prv_alloc_add_free_block(alloc_buddy_t *heap, uintptr_t block,
                                      uint8_t order) {

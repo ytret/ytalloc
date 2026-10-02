@@ -19,11 +19,8 @@
 #define YTALLOC_STATIC_ALIGN 32
 #endif
 
-#define YTALLOC_BUDDY_MIN_ALLOC_SIZE YTALLOC_BUDDY_MIN_BLOCK_SIZE
-
 static_assert(YTALLOC_BUDDY_MAX_ORDERS > 0);
 static_assert(YTALLOC_BUDDY_MIN_BLOCK_SIZE > 0);
-static_assert(YTALLOC_BUDDY_MIN_ALLOC_SIZE > 0);
 
 #if __cplusplus
 extern "C" {
@@ -54,7 +51,7 @@ typedef struct {
 typedef struct {
     uintptr_t start;
     uintptr_t end;
-    size_t used_size;
+    size_t managed_size;
 
     size_t min_block_size;
     size_t num_orders;

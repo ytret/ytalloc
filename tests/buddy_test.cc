@@ -128,46 +128,46 @@ TEST_F(BuddyTest, AllocZeroSize) {
     EXPECT_EQ(ptr, nullptr);
 }
 
-TEST_F(BuddyTest, AllocMaxSize_1Alloc) {
+TEST_F(BuddyTest, AllocUntilHeapFull_1Alloc) {
     init_with_size(YTALLOC_BUDDY_MIN_BLOCK_SIZE, YTALLOC_BUDDY_MIN_BLOCK_SIZE);
 
-    void *const ptr = alloc_buddy(&alloc, YTALLOC_BUDDY_MIN_ALLOC_SIZE);
+    void *const ptr = alloc_buddy(&alloc, YTALLOC_BUDDY_MIN_BLOCK_SIZE);
     ASSERT_NE(ptr, nullptr);
 
-    random_write(ptr, YTALLOC_BUDDY_MIN_ALLOC_SIZE);
+    random_write(ptr, YTALLOC_BUDDY_MIN_BLOCK_SIZE);
     check_writes();
 }
 
-TEST_F(BuddyTest, AllocMaxSize_2Allocs) {
+TEST_F(BuddyTest, AllocUntilHeapFull_2Allocs) {
     init_with_size(2 * YTALLOC_BUDDY_MIN_BLOCK_SIZE,
                    2 * YTALLOC_BUDDY_MIN_BLOCK_SIZE);
 
-    void *const ptr1 = alloc_buddy(&alloc, YTALLOC_BUDDY_MIN_ALLOC_SIZE);
+    void *const ptr1 = alloc_buddy(&alloc, YTALLOC_BUDDY_MIN_BLOCK_SIZE);
     ASSERT_NE(ptr1, nullptr);
 
-    void *const ptr2 = alloc_buddy(&alloc, YTALLOC_BUDDY_MIN_ALLOC_SIZE);
+    void *const ptr2 = alloc_buddy(&alloc, YTALLOC_BUDDY_MIN_BLOCK_SIZE);
     ASSERT_NE(ptr2, nullptr);
 
-    random_write(ptr1, YTALLOC_BUDDY_MIN_ALLOC_SIZE);
-    random_write(ptr2, YTALLOC_BUDDY_MIN_ALLOC_SIZE);
+    random_write(ptr1, YTALLOC_BUDDY_MIN_BLOCK_SIZE);
+    random_write(ptr2, YTALLOC_BUDDY_MIN_BLOCK_SIZE);
     check_writes();
 }
 
-TEST_F(BuddyTest, AllocMaxSize_3rdAllocFails) {
+TEST_F(BuddyTest, AllocUntilHeapFull_3rdAllocFails) {
     init_with_size(2 * YTALLOC_BUDDY_MIN_BLOCK_SIZE,
                    2 * YTALLOC_BUDDY_MIN_BLOCK_SIZE);
 
-    void *const ptr1 = alloc_buddy(&alloc, YTALLOC_BUDDY_MIN_ALLOC_SIZE);
+    void *const ptr1 = alloc_buddy(&alloc, YTALLOC_BUDDY_MIN_BLOCK_SIZE);
     ASSERT_NE(ptr1, nullptr);
 
-    void *const ptr2 = alloc_buddy(&alloc, YTALLOC_BUDDY_MIN_ALLOC_SIZE);
+    void *const ptr2 = alloc_buddy(&alloc, YTALLOC_BUDDY_MIN_BLOCK_SIZE);
     ASSERT_NE(ptr2, nullptr);
 
-    void *const ptr3 = alloc_buddy(&alloc, YTALLOC_BUDDY_MIN_ALLOC_SIZE);
+    void *const ptr3 = alloc_buddy(&alloc, YTALLOC_BUDDY_MIN_BLOCK_SIZE);
     ASSERT_EQ(ptr3, nullptr);
 
-    random_write(ptr1, YTALLOC_BUDDY_MIN_ALLOC_SIZE);
-    random_write(ptr2, YTALLOC_BUDDY_MIN_ALLOC_SIZE);
+    random_write(ptr1, YTALLOC_BUDDY_MIN_BLOCK_SIZE);
+    random_write(ptr2, YTALLOC_BUDDY_MIN_BLOCK_SIZE);
     check_writes();
 }
 
@@ -181,7 +181,7 @@ TEST_F(BuddyTest, AllocTooMuchFails) {
 TEST_F(BuddyTest, AllocRoundUpSize) {
     init_with_size(YTALLOC_BUDDY_MIN_BLOCK_SIZE, YTALLOC_BUDDY_MIN_BLOCK_SIZE);
 
-    void *const ptr1 = alloc_buddy(&alloc, YTALLOC_BUDDY_MIN_ALLOC_SIZE);
+    void *const ptr1 = alloc_buddy(&alloc, YTALLOC_BUDDY_MIN_BLOCK_SIZE);
     ASSERT_NE(ptr1, nullptr);
 
     void *const ptr2 = alloc_buddy(&alloc, 1);
@@ -189,10 +189,10 @@ TEST_F(BuddyTest, AllocRoundUpSize) {
 }
 
 TEST_F(BuddyTest, AllocNoSuitableBlock) {
-    // 64 -> 32 | 32
-    // 1. Allocate 16 bytes -> ideally, 48 bytes are left free. But actually
-    //    32 bytes are left free.
-    // 2. Try to allocate the ideally free 32 bytes and fail.
+    // 1. Request half of an order-0 block, this gets rounded up to a full
+    //    order-0 block.
+    // 2. Request more than an order-0 block, this fails because only one
+    //    order-0 block is free.
 
     init_with_size(2 * YTALLOC_BUDDY_MIN_BLOCK_SIZE,
                    2 * YTALLOC_BUDDY_MIN_BLOCK_SIZE);
@@ -223,10 +223,10 @@ TEST_F(BuddyTest, AllocNoSuitableBlock_WithFree) {
 }
 
 TEST_F(BuddyTest, AllocSplitMerge) {
-    // 1. Split the 64 byte block into two 32 byte blocks by allocating <32
-    //    bytes.
+    // 1. Split the order-1 block into two order-0 blocks by allocating less
+    //    than the size of an order-0 block.
     // 2. Free the allocated block.
-    // 3. Expect the two 32 byte blocks to be merged into the original 64 byte
+    // 3. Expect the two order-0 blocks to be merged into the original order-1
     //    block.
 
     init_with_size(2 * YTALLOC_BUDDY_MIN_BLOCK_SIZE,
@@ -280,7 +280,7 @@ TEST_F(BuddyTest, AllocReturnsAlignedAddress) {
     init_with_size(2 * YTALLOC_BUDDY_MIN_BLOCK_SIZE,
                    2 * YTALLOC_BUDDY_MIN_BLOCK_SIZE);
 
-    constexpr size_t alloc_size = YTALLOC_BUDDY_MIN_ALLOC_SIZE;
+    constexpr size_t alloc_size = YTALLOC_BUDDY_MIN_BLOCK_SIZE;
 
     void *const ptr1 = alloc_buddy(&alloc, alloc_size);
     void *const ptr2 = alloc_buddy(&alloc, alloc_size);
@@ -347,7 +347,8 @@ TEST_F(BuddyTest, AlignedAlloc_SizeLtAlign) {
     void *const ptr1 = alloc_buddy_aligned(&alloc, alloc_size, alloc_align);
     ASSERT_NE(ptr1, nullptr);
 
-    // Initially there were 4 blocks. One is now used. Three should be free.
+    // One order-0 block is allocated. The remaining free blocks provide
+    // capacity for three more order-0 allocations.
     void *const ptr2 = alloc_buddy(&alloc, YTALLOC_BUDDY_MIN_BLOCK_SIZE);
     ASSERT_NE(ptr2, nullptr);
     void *const ptr3 = alloc_buddy(&alloc, YTALLOC_BUDDY_MIN_BLOCK_SIZE);
@@ -419,7 +420,8 @@ TEST_F(BuddyTest, CountFree_OneOrder) {
 }
 
 TEST_F(BuddyTest, CountFree_TwoOrders) {
-    init_with_size(2 * YTALLOC_BUDDY_MIN_BLOCK_SIZE, 2 * YTALLOC_BUDDY_MIN_BLOCK_SIZE);
+    init_with_size(2 * YTALLOC_BUDDY_MIN_BLOCK_SIZE,
+                   2 * YTALLOC_BUDDY_MIN_BLOCK_SIZE);
 
     size_t order0_cnt = alloc_buddy_count_free(&alloc, 0);
     size_t order1_cnt = alloc_buddy_count_free(&alloc, 1);
@@ -436,7 +438,8 @@ TEST_F(BuddyTest, CountFree_TwoOrders) {
 }
 
 TEST_F(BuddyTest, CountFree_ThreeOrders) {
-    init_with_size(4 * YTALLOC_BUDDY_MIN_BLOCK_SIZE, 4 * YTALLOC_BUDDY_MIN_BLOCK_SIZE);
+    init_with_size(4 * YTALLOC_BUDDY_MIN_BLOCK_SIZE,
+                   4 * YTALLOC_BUDDY_MIN_BLOCK_SIZE);
 
     size_t order0_cnt = alloc_buddy_count_free(&alloc, 0);
     size_t order1_cnt = alloc_buddy_count_free(&alloc, 1);
